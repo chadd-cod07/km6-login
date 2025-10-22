@@ -403,18 +403,18 @@
     });
     </script>
   <script>
-  // ✅ Logout link behavior
   const logoutLink = document.querySelector('.dropdown-menu a[href="logout.html"]');
-
   if (logoutLink) {
     logoutLink.addEventListener('click', function (event) {
       event.preventDefault();
+      // ✅ Redirect back to login page
       window.location.href = "https://chadd-cod07.github.io/km6-login/";
     });
   }
 </script>
 </body>
 </html>
+
 
 
 
