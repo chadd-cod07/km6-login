@@ -402,20 +402,19 @@
   alert("Focus 30 page coming soon!");
     });
     </script>
-<!-- Add this at the very end before </body> -->
-<script>
-  // Handle Logout Click
+  <script>
+  // ✅ Log Out redirects back to main login page
   const logoutLink = document.querySelector('.dropdown-menu a[href="logout.html"]');
 
   if (logoutLink) {
     logoutLink.addEventListener('click', function (event) {
       event.preventDefault();
-      // ✅ Redirect back to your GitHub Pages login page
-      window.location.href = "https://chadd-cod07.github.io/km6_login/";
+      // redirect to your GitHub Pages login (fixed repo name)
+      window.location.href = "https://chadd-cod07.github.io/km6-login/";
     });
   }
 </script>
-
 </body>
 </html>
+
 
