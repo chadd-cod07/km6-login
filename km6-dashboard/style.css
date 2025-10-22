@@ -4,7 +4,9 @@ body {
   margin: 0;
   background-color: #ffffff;
   color: #222;
+  overflow-x: hidden; /* prevent horizontal scroll on mobile */
 }
+
 .nav-link {
   text-decoration: none;
   color: #111; /* black text */
@@ -18,15 +20,16 @@ body {
 
 /* Header Section */
 .header {
-  position: sticky;         /* keeps it visible */
-  top: 0;                   /* sticks to top of screen */
-  z-index: 1000;            /* makes sure it stays above everything else */
-  background: #f6b500;      /* same color as before */
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  background: #f6b500;
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 10px 20px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2); /* small shadow for separation */
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  flex-wrap: wrap; /* allows wrapping on small screens */
 }
 
 /* Logo area */
@@ -34,11 +37,12 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 /* Logo image */
 .header .logo img {
-  height: 60px; /* adjust for size */
+  height: 50px;
   width: auto;
 }
 
@@ -54,25 +58,29 @@ body {
 .header-right {
   display: flex;
   align-items: center;
-  gap: 25px;
+  gap: 20px;
+  flex-wrap: wrap;
   font-weight: bold;
-  font-size: 16px;
+  font-size: 15px;
 }
 
 .menu-icon {
   cursor: pointer;
-  font-size: 28px;
+  font-size: 26px;
   user-select: none;
-  color: #000 !important; /* force black color */
-  margin-left: 20px;
+  color: #000 !important;
+  margin-left: 10px;
 }
 
-/* Summary section (gray area) */
+/* Summary Section */
 .summary {
-  background: #eeeeee;
-  padding: 15px 0;
+  position: sticky;
+  top: 60px;
+  z-index: 999;
+  background: #eee;
+  padding: 15px;
   text-align: center;
-  border-bottom: 2px solid #ccc;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
 .summary h2 {
@@ -83,13 +91,14 @@ body {
 
 .summary .date {
   color: red;
+  font-weight: bold;
 }
 
 .summary .info {
   display: flex;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 20px;
+  gap: 15px;
   margin-top: 10px;
 }
 
@@ -98,9 +107,15 @@ body {
   font-size: 14px;
 }
 
-/* Table section */
+/* Table Section */
 .table-section {
-  padding: 25px 40px;
+  padding: 25px 15px;
+}
+
+.table-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 table {
@@ -108,10 +123,11 @@ table {
   border-collapse: collapse;
   text-align: center;
   font-size: 14px;
+  min-width: 600px; /* ensures scroll on mobile */
 }
 
 th {
-  background-color: #00843d; /* KM6 green */
+  background-color: #00843d;
   color: white;
   padding: 10px;
   text-transform: uppercase;
@@ -122,9 +138,10 @@ th {
 td {
   padding: 8px;
   border-bottom: 1px solid #ddd;
+  white-space: nowrap;
 }
 
-/* Total row style */
+/* Total row */
 .total {
   background-color: #e5f5e0;
   font-weight: bold;
@@ -135,27 +152,9 @@ td {
   color: red;
 }
 
-/* Optional: improve mobile/tablet viewing */
-@media (max-width: 768px) {
-  .header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-  }
-
-  .header-right {
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-
-  .summary .info {
-    flex-direction: column;
-    gap: 5px;
-  }
-}
 /* --- Compare Section --- */
 .compare-section {
-  padding: 30px 40px;
+  padding: 25px 15px;
   background-color: #f9f9f9;
 }
 
@@ -168,7 +167,7 @@ td {
 .compare-cards {
   display: flex;
   justify-content: center;
-  gap: 30px;
+  gap: 20px;
   flex-wrap: wrap;
 }
 
@@ -176,8 +175,8 @@ td {
   background: #ffffff;
   border-radius: 12px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-  padding: 20px 30px;
-  width: 280px;
+  padding: 15px 20px;
+  width: 260px;
   text-align: center;
   transition: transform 0.2s ease;
 }
@@ -193,7 +192,7 @@ td {
 
 .card p {
   margin: 5px 0;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .card p strong {
@@ -204,17 +203,18 @@ td {
 .down {
   color: red;
   font-weight: bold;
-  font-size: 16px;
+  font-size: 15px;
 }
 
 .up {
   color: #00843d;
   font-weight: bold;
-  font-size: 16px;
+  font-size: 15px;
 }
+
 /* --- Sub Tables (KCM, LU, Baguio) --- */
 .table-group {
-  padding: 30px 40px;
+  padding: 20px 15px;
   margin-top: 10px;
 }
 
@@ -230,6 +230,7 @@ td {
   border-collapse: collapse;
   text-align: center;
   font-size: 13px;
+  min-width: 600px;
 }
 
 .table-group th {
@@ -247,84 +248,11 @@ td {
   background-color: #e5f5e0;
   font-weight: bold;
 }
-.summary {
-  position: sticky;        /* keeps it visible when scrolling */
-  top: 60px;               /* stays just below the header */
-  z-index: 999;            /* keeps it above the rest of the content */
-  background: #eee;
-  padding: 15px;
-  text-align: center;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-}
 
-.summary .date {
-  color: red;
-  font-weight: bold;
-}
-
-.summary strong {
-  font-weight: 600;
-}
 /* --- Dropdown Menu --- */
-.dropdown {
-  position: relative;
-  display: inline-block;
-}
-
-.dropdown-menu {
-  display: none; /* hidden by default */
-  position: absolute;
-  right: 0;
-  top: 40px;
-  background-color: #fff;
-  min-width: 180px;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-  border-radius: 8px;
-  overflow: hidden;
-  z-index: 2000;
-}
-
-.dropdown-menu a {
-  display: block;
-  padding: 10px 15px;
-  text-decoration: none;
-  color: #333;
-  font-size: 14px;
-  border-bottom: 1px solid #eee;
-}
-
-.dropdown-menu a:last-child {
-  border-bottom: none;
-}
-
-.dropdown-menu a:hover {
-  background-color: #f6b500;
-  color: white;
-}
-
-/* Show menu when active */
-.dropdown.active .dropdown-menu {
-  display: block;
-}
-
-/* Style tweak for icon */
-.menu-icon {
-  font-size: 26px;
-  cursor: pointer;
-  user-select: none;
-}
-/* === Dark Dropdown Menu === */
 .menu-container {
   position: relative;
   display: inline-block;
-}
-
-.menu-icon {
-  cursor: pointer;
-  font-size: 28px;
-  user-select: none;
-  color: white; /* matches dark header */
-  margin-left: 20px;
 }
 
 .dropdown-menu {
@@ -360,75 +288,54 @@ td {
   from { opacity: 0; transform: translateY(-5px); }
   to { opacity: 1; transform: translateY(0); }
 }
-/* ✅ Dashboard mobile fix */
-@media screen and (max-width: 768px) {
-    body {
-        overflow-x: hidden;
-    }
 
-    .sidebar {
-        width: 100%;
-        position: relative;
-    }
-
-    .main-content {
-        margin-left: 0;
-        padding: 15px;
-    }
-
-    header, .navbar {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .card, .chart-container {
-        width: 100%;
-        margin: 10px 0;
-    }
-}
-/* ---------- Mobile Responsive Fix ---------- */
+/* ✅ Responsive Fixes for Android and iPhone */
 @media screen and (max-width: 768px) {
   body {
     font-size: 14px;
-    overflow-x: hidden;
   }
 
-  .sidebar {
-    width: 100%;
-    height: auto;
-    position: relative;
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 10px 15px;
   }
 
-  .content {
-    margin-left: 0;
+  .header-right {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .summary {
+    position: static;
     padding: 10px;
+  }
+
+  .compare-cards {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .card {
+    width: 90%;
+    font-size: 14px;
   }
 
   .table-container {
     overflow-x: auto;
+    margin-top: 10px;
   }
 
   table {
-    width: 100%;
-    border-collapse: collapse;
-    display: block;
-    overflow-x: auto;
+    font-size: 13px;
+    min-width: 500px;
   }
 
-  .card, .summary-box, .stat-box {
-    width: 100%;
-    margin-bottom: 15px;
+  th, td {
+    padding: 6px;
   }
 
-  .header, .topbar {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .menu-toggle {
-    display: block;
+  .menu-icon {
     font-size: 24px;
   }
 }
-
-
