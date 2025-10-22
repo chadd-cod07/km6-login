@@ -51,6 +51,25 @@
       from { opacity: 0; transform: translateY(-5px); }
       to { opacity: 1; transform: translateY(0); }
     }
+
+    /* ✅ Mobile Responsive Tables */
+    .table-container {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 600px; /* keep readable on mobile */
+    }
+
+    th, td {
+      text-align: left;
+      padding: 8px;
+      white-space: nowrap;
+    }
   </style>
 </head>
 <body>
@@ -60,19 +79,19 @@
       <h1>GENERAL MERCHANDISE</h1>
     </div>
     <div class="header-right">
-  <h2><a href="#" class="nav-link" id="totalSalesLink">Total Sales</a></h2>
-  <h2><a href="#" class="nav-link" id="dspSalesLink">DSP-Sales</a></h2>
-  <h2><a href="#" class="nav-link" id="focus30Link">Focus 30</a></h2>
-      <!-- Menu Container (☰ icon + Dropdown) -->
-<div class="menu-container">
-  <div class="menu-icon">☰</div>
-  <div class="dropdown-menu" id="dropdownMenu">
-    <a href="logout.html">🔒 Log Out</a>
-    <a href="upload.html">⬆️ Upload Excel File</a>
-    <a href="settings.html">⚙️ Settings</a>
-  </div>
-</div>
+      <h2><a href="#" class="nav-link" id="totalSalesLink">Total Sales</a></h2>
+      <h2><a href="#" class="nav-link" id="dspSalesLink">DSP-Sales</a></h2>
+      <h2><a href="#" class="nav-link" id="focus30Link">Focus 30</a></h2>
 
+      <div class="menu-container">
+        <div class="menu-icon">☰</div>
+        <div class="dropdown-menu" id="dropdownMenu">
+          <a href="logout.html">🔒 Log Out</a>
+          <a href="upload.html">⬆️ Upload Excel File</a>
+          <a href="settings.html">⚙️ Settings</a>
+        </div>
+      </div>
+    </div>
   </header>
 
   <section class="summary">
@@ -112,248 +131,256 @@
     </div>
   </section>
 
-  <!-- Branch Table (moved to top) -->
+  <!-- Branch Table -->
   <section class="table-section">
     <h2>Branch Summary</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Branch</th>
-          <th>Gross</th>
-          <th>Rejection</th>
-          <th>B.O Amount</th>
-          <th>Net Sales</th>
-          <th>Target</th>
-          <th>%</th>
-          <th>Balance</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>Baguio</td>
-          <td>52,909,574.21</td>
-          <td>873,841.70</td>
-          <td>91,127,709.64</td>
-          <td>50,142,373.46</td>
-          <td>91,127,709.64</td>
-          <td>55.02%</td>
-          <td class="negative">(40,985,336.18)</td>
-        </tr>
-        <tr>
-          <td>La Union</td>
-          <td>32,505,356.95</td>
-          <td>934,142.37</td>
-          <td>47,136,762.36</td>
-          <td>27,871,778.09</td>
-          <td>47,136,762.36</td>
-          <td>58.94%</td>
-          <td class="negative">(19,354,984.28)</td>
-        </tr>
-        <tr class="total">
-          <td><strong>Total KM6</strong></td>
-          <td>78,889,403.64</td>
-          <td>1,794,754.29</td>
-          <td>1,950,073.85</td>
-          <td>72,337,056.23</td>
-          <td>138,264,472.00</td>
-          <td>58.94%</td>
-          <td class="negative">(65,927,415.77)</td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Branch</th>
+            <th>Gross</th>
+            <th>Rejection</th>
+            <th>B.O Amount</th>
+            <th>Net Sales</th>
+            <th>Target</th>
+            <th>%</th>
+            <th>Balance</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Baguio</td>
+            <td>52,909,574.21</td>
+            <td>873,841.70</td>
+            <td>91,127,709.64</td>
+            <td>50,142,373.46</td>
+            <td>91,127,709.64</td>
+            <td>55.02%</td>
+            <td class="negative">(40,985,336.18)</td>
+          </tr>
+          <tr>
+            <td>La Union</td>
+            <td>32,505,356.95</td>
+            <td>934,142.37</td>
+            <td>47,136,762.36</td>
+            <td>27,871,778.09</td>
+            <td>47,136,762.36</td>
+            <td>58.94%</td>
+            <td class="negative">(19,354,984.28)</td>
+          </tr>
+          <tr class="total">
+            <td><strong>Total KM6</strong></td>
+            <td>78,889,403.64</td>
+            <td>1,794,754.29</td>
+            <td>1,950,073.85</td>
+            <td>72,337,056.23</td>
+            <td>138,264,472.00</td>
+            <td>58.94%</td>
+            <td class="negative">(65,927,415.77)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </section>
 
   <!-- KCM Table -->
   <section class="table-group">
     <h2>Total KCM</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>KCM</th>
-          <th>Gross</th>
-          <th>Rejection</th>
-          <th>B.O Amount</th>
-          <th>Net Sales</th>
-          <th>Target</th>
-          <th>%</th>
-          <th>Balance</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>Jim Russel Peralta</td>
-          <td>12,166,125.19</td>
-          <td>304,916.12</td>
-          <td>129,412.73</td>
-          <td>9,533,727.01</td>
-          <td>15,071,696.63</td>
-          <td>63.26%</td>
-          <td class="negative">(5,537,969.62)</td>
-        </tr>
-        <tr>
-          <td>Judy Ann Mabanta</td>
-          <td>3,198,814.16</td>
-          <td>22,488.92</td>
-          <td>60,096.53</td>
-          <td>2,566,038.27</td>
-          <td>4,367,754.61</td>
-          <td>58.75%</td>
-          <td class="negative">(1,801,716.34)</td>
-        </tr>
-        <tr>
-          <td>Gilbert Aquino</td>
-          <td>24,414,094.03</td>
-          <td>431,418.50</td>
-          <td>363,410.28</td>
-          <td>18,143,132.97</td>
-          <td>37,611,090.41</td>
-          <td>48.24%</td>
-          <td class="negative">(19,468,776.43)</td>
-        </tr>
-        <tr>
-          <td>Roderick Dacay</td>
-          <td>11,393,919.76</td>
-          <td>209,210.16</td>
-          <td>189,307.34</td>
-          <td>9,045,203.89</td>
-          <td>17,302,603.09</td>
-          <td>52.28%</td>
-          <td class="negative">(8,257,400.00)</td>
-        </tr>
-        <tr>
-          <td>Gyver Gano</td>
-          <td>1,985,822.40</td>
-          <td>26,725.76</td>
-          <td>249,205.26</td>
-          <td>1,440,620.38</td>
-          <td>3,760,520.90</td>
-          <td>38.31%</td>
-          <td class="negative">(2,319,899.52)</td>
-        </tr>
-        <tr class="total">
-          <td><strong>Total KCM</strong></td>
-          <td>53,158,835.54</td>
-          <td>994,759.47</td>
-          <td>997,432.12</td>
-          <td>40,728,792.04</td>
-          <td>78,114,214.71</td>
-          <td>52.14%</td>
-          <td class="negative">(37,385,422.31)</td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>KCM</th>
+            <th>Gross</th>
+            <th>Rejection</</th>
+            <th>B.O Amount</th>
+            <th>Net Sales</th>
+            <th>Target</th>
+            <th>%</th>
+            <th>Balance</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Jim Russel Peralta</td>
+            <td>12,166,125.19</td>
+            <td>304,916.12</td>
+            <td>129,412.73</td>
+            <td>9,533,727.01</td>
+            <td>15,071,696.63</td>
+            <td>63.26%</td>
+            <td class="negative">(5,537,969.62)</td>
+          </tr>
+          <tr>
+            <td>Judy Ann Mabanta</td>
+            <td>3,198,814.16</td>
+            <td>22,488.92</td>
+            <td>60,096.53</td>
+            <td>2,566,038.27</td>
+            <td>4,367,754.61</td>
+            <td>58.75%</td>
+            <td class="negative">(1,801,716.34)</td>
+          </tr>
+          <tr>
+            <td>Gilbert Aquino</td>
+            <td>24,414,094.03</td>
+            <td>431,418.50</td>
+            <td>363,410.28</td>
+            <td>18,143,132.97</td>
+            <td>37,611,090.41</td>
+            <td>48.24%</td>
+            <td class="negative">(19,468,776.43)</td>
+          </tr>
+          <tr>
+            <td>Roderick Dacay</td>
+            <td>11,393,919.76</td>
+            <td>209,210.16</td>
+            <td>189,307.34</td>
+            <td>9,045,203.89</td>
+            <td>17,302,603.09</td>
+            <td>52.28%</td>
+            <td class="negative">(8,257,400.00)</td>
+          </tr>
+          <tr>
+            <td>Gyver Gano</td>
+            <td>1,985,822.40</td>
+            <td>26,725.76</td>
+            <td>249,205.26</td>
+            <td>1,440,620.38</td>
+            <td>3,760,520.90</td>
+            <td>38.31%</td>
+            <td class="negative">(2,319,899.52)</td>
+          </tr>
+          <tr class="total">
+            <td><strong>Total KCM</strong></td>
+            <td>53,158,835.54</td>
+            <td>994,759.47</td>
+            <td>997,432.12</td>
+            <td>40,728,792.04</td>
+            <td>78,114,214.71</td>
+            <td>52.14%</td>
+            <td class="negative">(37,385,422.31)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </section>
 
   <!-- Tertiary La Union -->
   <section class="table-group">
     <h2>Tertiary LU</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Gross</th>
-          <th>Rejection</th>
-          <th>B.O Amount</th>
-          <th>Net Sales</th>
-          <th>Target</th>
-          <th>%</th>
-          <th>Balance</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>Gemma Jacaban</td>
-          <td>1,721,933.53</td>
-          <td>-</td>
-          <td>11,571.57</td>
-          <td>1,721,933.53</td>
-          <td>4,075,946.99</td>
-          <td>42.25%</td>
-          <td class="negative">(2,354,013.46)</td>
-        </tr>
-        <tr>
-          <td>Jovelyn Castro</td>
-          <td>13,142,028.61</td>
-          <td>457,939.41</td>
-          <td>199,251.67</td>
-          <td>10,880,155.73</td>
-          <td>20,177,154.31</td>
-          <td>53.93%</td>
-          <td class="negative">(9,297,595.61)</td>
-        </tr>
-        <tr class="total">
-          <td><strong>Total LU</strong></td>
-          <td>14,863,962.14</td>
-          <td>457,939.41</td>
-          <td>210,823.24</td>
-          <td>12,602,089.26</td>
-          <td>24,253,698.33</td>
-          <td>51.96%</td>
-          <td class="negative">(11,651,609.07)</td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Gross</th>
+            <th>Rejection</th>
+            <th>B.O Amount</th>
+            <th>Net Sales</th>
+            <th>Target</th>
+            <th>%</th>
+            <th>Balance</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Gemma Jacaban</td>
+            <td>1,721,933.53</td>
+            <td>-</td>
+            <td>11,571.57</td>
+            <td>1,721,933.53</td>
+            <td>4,075,946.99</td>
+            <td>42.25%</td>
+            <td class="negative">(2,354,013.46)</td>
+          </tr>
+          <tr>
+            <td>Jovelyn Castro</td>
+            <td>13,142,028.61</td>
+            <td>457,939.41</td>
+            <td>199,251.67</td>
+            <td>10,880,155.73</td>
+            <td>20,177,154.31</td>
+            <td>53.93%</td>
+            <td class="negative">(9,297,595.61)</td>
+          </tr>
+          <tr class="total">
+            <td><strong>Total LU</strong></td>
+            <td>14,863,962.14</td>
+            <td>457,939.41</td>
+            <td>210,823.24</td>
+            <td>12,602,089.26</td>
+            <td>24,253,698.33</td>
+            <td>51.96%</td>
+            <td class="negative">(11,651,609.07)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </section>
 
   <!-- Tertiary Baguio -->
   <section class="table-group">
     <h2>Tertiary Baguio</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Gross</th>
-          <th>Rejection</th>
-          <th>B.O Amount</th>
-          <th>Net Sales</th>
-          <th>Target</th>
-          <th>%</th>
-          <th>Balance</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>Jehu Romero</td>
-          <td>4,801,018.19</td>
-          <td>80,198.53</td>
-          <td>312,790.34</td>
-          <td>8,576,562.07</td>
-          <td>14,978,896.84</td>
-          <td>57.26%</td>
-          <td class="negative">(6,401,732.80)</td>
-        </tr>
-        <tr>
-          <td>Mr Adef Padiacheo</td>
-          <td>4,702,779.85</td>
-          <td>80,271.72</td>
-          <td>89,365.24</td>
-          <td>3,707,753.98</td>
-          <td>6,231,106.82</td>
-          <td>59.50%</td>
-          <td class="negative">(2,523,352.28)</td>
-        </tr>
-        <tr>
-          <td>Rocky Fowaya</td>
-          <td>1,852,639.53</td>
-          <td>12,592.89</td>
-          <td>315,964.25</td>
-          <td>4,208,042.88</td>
-          <td>14,687,157.84</td>
-          <td>28.65%</td>
-          <td class="negative">(10,479,114.96)</td>
-        </tr>
-        <tr class="total">
-          <td><strong>Total Baguio</strong></td>
-          <td>11,356,437.57</td>
-          <td>173,063.14</td>
-          <td>718,320.62</td>
-          <td>16,492,358.93</td>
-          <td>35,896,558.97</td>
-          <td>45.94%</td>
-          <td class="negative">(19,404,200.04)</td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Gross</th>
+            <th>Rejection</th>
+            <th>B.O Amount</th>
+            <th>Net Sales</th>
+            <th>Target</th>
+            <th>%</th>
+            <th>Balance</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Jehu Romero</td>
+            <td>4,801,018.19</td>
+            <td>80,198.53</td>
+            <td>312,790.34</td>
+            <td>8,576,562.07</td>
+            <td>14,978,896.84</td>
+            <td>57.26%</td>
+            <td class="negative">(6,401,732.80)</td>
+          </tr>
+          <tr>
+            <td>Mr Adef Padiacheo</td>
+            <td>4,702,779.85</td>
+            <td>80,271.72</td>
+            <td>89,365.24</td>
+            <td>3,707,753.98</td>
+            <td>6,231,106.82</td>
+            <td>59.50%</td>
+            <td class="negative">(2,523,352.28)</td>
+          </tr>
+          <tr>
+            <td>Rocky Fowaya</td>
+            <td>1,852,639.53</td>
+            <td>12,592.89</td>
+            <td>315,964.25</td>
+            <td>4,208,042.88</td>
+            <td>14,687,157.84</td>
+            <td>28.65%</td>
+            <td class="negative">(10,479,114.96)</td>
+          </tr>
+          <tr class="total">
+            <td><strong>Total Baguio</strong></td>
+            <td>11,356,437.57</td>
+            <td>173,063.14</td>
+            <td>718,320.62</td>
+            <td>16,492,358.93</td>
+            <td>35,896,558.97</td>
+            <td>45.94%</td>
+            <td class="negative">(19,404,200.04)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </section>
 
   <!-- ===== Dropdown JS ===== -->
@@ -372,51 +399,26 @@
       }
     });
   </script>
+
   <script>
-  const menuIcon = document.querySelector('.menu-icon');
-  const dropdownMenu = document.getElementById('dropdownMenu');
-
-  // Toggle dropdown visibility
-  menuIcon.addEventListener('click', () => {
-    dropdownMenu.style.display =
-      dropdownMenu.style.display === 'block' ? 'none' : 'block';
-  });
-
-  // Close dropdown if clicked outside
-  window.addEventListener('click', (e) => {
-    if (!e.target.closest('.menu-container')) {
-      dropdownMenu.style.display = 'none';
-    }
-  });
-    </script>
-
-    <script>
     document.getElementById("totalSalesLink").addEventListener("click", () => {
-     alert("Total Sales page coming soon!");
+      alert("Total Sales page coming soon!");
     });
-
     document.getElementById("dspSalesLink").addEventListener("click", () => {
       alert("DSP-Sales page coming soon!");
     });
-
     document.getElementById("focus30Link").addEventListener("click", () => {
-  alert("Focus 30 page coming soon!");
+      alert("Focus 30 page coming soon!");
     });
-    </script>
-  <script>
-  const logoutLink = document.querySelector('.dropdown-menu a[href="logout.html"]');
-  if (logoutLink) {
-    logoutLink.addEventListener('click', function (event) {
-      event.preventDefault();
-      // ✅ Redirect back to login page
-      window.location.href = "https://chadd-cod07.github.io/km6-login/";
-    });
-  }
-</script>
+
+    // ✅ Logout redirect to login
+    const logoutLink = document.querySelector('.dropdown-menu a[href="logout.html"]');
+    if (logoutLink) {
+      logoutLink.addEventListener('click', function (event) {
+        event.preventDefault();
+        window.location.href = "https://chadd-cod07.github.io/km6-login/";
+      });
+    }
+  </script>
 </body>
 </html>
-
-
-
-
-
