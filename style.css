@@ -99,3 +99,33 @@ h2 {
 .btn:hover {
     background: #c0392b;
 }
+/* ✅ Make login page responsive on mobile */
+@media screen and (max-width: 768px) {
+    .container {
+        flex-direction: column;
+        padding: 20px;
+    }
+
+    .login-box {
+        width: 100%;
+        max-width: 350px;
+        margin: auto;
+        box-shadow: 0 0 10px rgba(0,0,0,0.2);
+    }
+
+    .logo {
+        width: 120px;
+        height: auto;
+        margin-bottom: 15px;
+    }
+
+    .input-group input {
+        font-size: 16px;
+    }
+
+    .btn {
+        width: 100%;
+        font-size: 18px;
+    }
+}
+
