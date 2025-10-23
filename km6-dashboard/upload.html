@@ -6,167 +6,137 @@
   <title>Upload Excel File - KM6 Dashboard</title>
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <style>
-    body { font-family: Arial, sans-serif; background-color: #f6f8fa; text-align: center; padding: 50px; }
-    h2 { color: #00843d; }
-    input[type="file"] {
-      padding: 10px; border: 2px dashed #00843d; border-radius: 10px; background: #fff; cursor: pointer; margin-top: 20px;
-    }
-    .result {
-      margin-top: 30px; background: #fff; padding: 20px; border-radius: 10px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: inline-block; text-align: left; width: 360px;
-    }
-    button { background-color: #00843d; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-top: 20px; }
-    button:hover { background-color: #006f32; }
-    .ok { color: #00843d; font-weight: bold; }
-  </style>
+  <!-- Firebase SDKs -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+    import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+    // ✅ Your Firebase Config
+    const firebaseConfig = {
+      apiKey: "AIzaSyCStpCWdRO770N4SpH3GKYwp9pg1kP6_O4",
+      authDomain: "km6-dashboard.firebaseapp.com",
+      projectId: "km6-dashboard",
+      storageBucket: "km6-dashboard.firebasestorage.app",
+      messagingSenderId: "309068846407",
+      appId: "1:309068846407:web:68d51a21f6ab238fa1a862"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // === File Handling ===
+    window.addEventListener("DOMContentLoaded", () => {
+      const fileInput = document.getElementById("fileInput");
+      const resultDiv = document.getElementById("result");
+      const backButton = document.getElementById("backButton");
+
+      fileInput.addEventListener("change", handleFile, false);
+      backButton.addEventListener("click", () => {
+        window.location.href = window.location.hostname.includes("127.0.0.1") || window.location.hostname.includes("localhost")
+          ? "index.html"
+          : "https://chadd-cod07.github.io/km6-login/km6-dashboard/index.html";
+      });
+
+      async function handleFile(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: "array" });
+
+          const sheetGross = workbook.Sheets["Gross"];
+          const sheetNet = workbook.Sheets["P_Net.Inv"];
+          if (!sheetGross || !sheetNet) {
+            alert("Missing required sheets (Gross or P_Net.Inv)");
+            return;
+          }
+
+          const grossRows = XLSX.utils.sheet_to_json(sheetGross);
+          const netRows = XLSX.utils.sheet_to_json(sheetNet);
+
+          const getVal = (row, names) => {
+            const lower = Object.keys(row).reduce((acc, k) => {
+              acc[k.toLowerCase().trim()] = row[k];
+              return acc;
+            }, {});
+            for (let name of names) {
+              const key = name.toLowerCase().trim();
+              if (lower[key] !== undefined && lower[key] !== "")
+                return parseFloat(String(lower[key]).replace(/,/g, "")) || 0;
+            }
+            return 0;
+          };
+
+          let totals = { KM6: { gross: 0, reject: 0, bo: 0, net: 0 }, KML: { gross: 0, reject: 0, bo: 0, net: 0 } };
+          let fsTotals = {};
+
+          // === Process Gross Sheet ===
+          grossRows.forEach((r) => {
+            const branch = String(r["Branch Name"] || "").toUpperCase();
+            const fsName = String(r["fs"] || "").trim().toUpperCase();
+            const val = getVal(r, ["Sum of Order Amount", "TOTAL INVOICE", "GROSS"]);
+
+            if (!fsTotals[fsName]) fsTotals[fsName] = { gross: 0, reject: 0, bo: 0, net: 0 };
+            fsTotals[fsName].gross += val;
+
+            if (branch.includes("KM6") || branch.includes("BAGUIO")) totals.KM6.gross += val;
+            else if (branch.includes("KML") || branch.includes("LA UNION")) totals.KML.gross += val;
+          });
+
+          // === Process Net Sheet ===
+          netRows.forEach((r) => {
+            const branch = String(r["Branch Name"] || "").toUpperCase();
+            const fsName = String(r["FS"] || "").trim().toUpperCase();
+            const reject = getVal(r, ["TOTAL REJECTION", "REJECTION"]);
+            const bo = getVal(r, ["TOTAL BO", "BO", "B.O."]);
+            const net = getVal(r, ["TOTAL NET", "NET SALES", "NET"]);
+
+            if (!fsTotals[fsName]) fsTotals[fsName] = { gross: 0, reject: 0, bo: 0, net: 0 };
+            fsTotals[fsName].reject += reject;
+            fsTotals[fsName].bo += bo;
+            fsTotals[fsName].net += net;
+
+            if (branch.includes("KM6") || branch.includes("BAGUIO")) {
+              totals.KM6.reject += reject;
+              totals.KM6.bo += bo;
+              totals.KM6.net += net;
+            } else if (branch.includes("KML") || branch.includes("LA UNION")) {
+              totals.KML.reject += reject;
+              totals.KML.bo += bo;
+              totals.KML.net += net;
+            }
+          });
+
+          // === Save to Firebase ===
+          await setDoc(doc(db, "km6_dashboard_data", "dashboardTotals"), totals);
+          await setDoc(doc(db, "km6_dashboard_data", "fsTotals"), fsTotals);
+          localStorage.setItem("dashboardTotals", JSON.stringify(totals));
+          localStorage.setItem("fsTotals", JSON.stringify(fsTotals));
+
+          resultDiv.innerHTML = `
+            <h3>✅ Data Uploaded & Synced Successfully</h3>
+            <p><strong>KM6 (Baguio)</strong><br>Gross: ${totals.KM6.gross.toLocaleString()}<br>
+              Rejection: ${totals.KM6.reject.toLocaleString()}<br>BO: ${totals.KM6.bo.toLocaleString()}<br>
+              Net: ${totals.KM6.net.toLocaleString()}</p>
+            <p><strong>KML (La Union)</strong><br>Gross: ${totals.KML.gross.toLocaleString()}<br>
+              Rejection: ${totals.KML.reject.toLocaleString()}<br>BO: ${totals.KML.bo.toLocaleString()}<br>
+              Net: ${totals.KML.net.toLocaleString()}</p>
+            <p><em>Saved online & offline. Click below to return to dashboard.</em></p>
+          `;
+          backButton.style.display = "inline-block";
+        };
+        reader.readAsArrayBuffer(file);
+      }
+    });
+  </script>
 </head>
 <body>
-
   <h2>📊 Upload Excel File to Update Dashboard</h2>
   <p>Select your latest <strong>dataweb.xlsx</strong> file below:</p>
   <input type="file" id="fileInput" accept=".xlsx, .xls" />
-
   <div class="result" id="result"></div>
-
   <button id="backButton" style="display:none;">Go Back to Dashboard</button>
-
-<script>
-document.getElementById('fileInput').addEventListener('change', handleFile, false);
-
-document.getElementById('backButton').addEventListener('click', () => {
-  if (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost") {
-    window.location.href = "index.html";
-  } else {
-    window.location.href = "https://chadd-cod07.github.io/km6-login/km6-dashboard/index.html";
-  }
-});
-
-function handleFile(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = function (e) {
-    const data = new Uint8Array(e.target.result);
-    const workbook = XLSX.read(data, { type: 'array' });
-
-    const sheetGross = workbook.Sheets["Gross"];
-    const sheetNet = workbook.Sheets["P_Net.Inv"];
-    if (!sheetGross || !sheetNet) {
-      alert("❌ Missing sheet(s): please ensure both 'Gross' and 'P_Net.Inv' exist.");
-      return;
-    }
-
-    const grossRows = XLSX.utils.sheet_to_json(sheetGross);
-    const netRows = XLSX.utils.sheet_to_json(sheetNet);
-
-    // Utility: normalize keys
-    const normalizeKeys = (row) => {
-      const obj = {};
-      for (const k in row) {
-        obj[k.toLowerCase().trim().replace(/\s+/g, " ")] = row[k];
-      }
-      return obj;
-    };
-
-    const getVal = (row, keys) => {
-      const r = normalizeKeys(row);
-      for (const k of keys) {
-        const key = k.toLowerCase().trim().replace(/\s+/g, " ");
-        if (r[key] !== undefined && r[key] !== "") {
-          const v = parseFloat(String(r[key]).replace(/,/g, ""));
-          if (!isNaN(v)) return v;
-        }
-      }
-      return 0;
-    };
-
-    const getText = (row, keys) => {
-      const r = normalizeKeys(row);
-      for (const k of keys) {
-        const key = k.toLowerCase().trim().replace(/\s+/g, " ");
-        if (r[key] !== undefined && r[key] !== null) return String(r[key]).trim();
-      }
-      return "";
-    };
-
-    const totals = {
-      KM6: { gross: 0, reject: 0, bo: 0, net: 0 },
-      KML: { gross: 0, reject: 0, bo: 0, net: 0 }
-    };
-
-    const fsTotals = {};
-
-    // === Process "Gross" sheet
-    grossRows.forEach(r => {
-      const branch = getText(r, ["Branch Name"]).toUpperCase();
-      const fs = getText(r, ["fs", "FS", "Salesman", "Employee Name"]);
-      const gross = getVal(r, ["Sum of Order Amount", "GROSS", "TOTAL INVOICE"]);
-
-      if (!fs) return;
-      const key = fs.toUpperCase();
-      if (!fsTotals[key]) fsTotals[key] = { gross: 0, reject: 0, bo: 0, net: 0 };
-      fsTotals[key].gross += gross;
-
-      if (branch.includes("KM6") || branch.includes("BAGUIO")) totals.KM6.gross += gross;
-      if (branch.includes("KML") || branch.includes("LA UNION")) totals.KML.gross += gross;
-    });
-
-    // === Process "P_Net.Inv" sheet
-    netRows.forEach(r => {
-      const branch = getText(r, ["Branch Name"]).toUpperCase();
-      const fs = getText(r, ["fs", "FS", "Salesman", "Employee Name"]);
-      const reject = getVal(r, ["TOTAL REJECTION", "REJECTION"]);
-      const bo = getVal(r, ["TOTAL BO", "BO", "B.O AMOUNT"]);
-      const net = getVal(r, ["TOTAL NET", "NET SALES", "NET"]);
-
-      if (!fs) return;
-      const key = fs.toUpperCase();
-      if (!fsTotals[key]) fsTotals[key] = { gross: 0, reject: 0, bo: 0, net: 0 };
-      fsTotals[key].reject += reject;
-      fsTotals[key].bo += bo;
-      fsTotals[key].net += net;
-
-      if (branch.includes("KM6") || branch.includes("BAGUIO")) {
-        totals.KM6.reject += reject;
-        totals.KM6.bo += bo;
-        totals.KM6.net += net;
-      }
-      if (branch.includes("KML") || branch.includes("LA UNION")) {
-        totals.KML.reject += reject;
-        totals.KML.bo += bo;
-        totals.KML.net += net;
-      }
-    });
-
-    // ✅ Debug: show what’s captured
-    console.log("📊 Branch Totals:", totals);
-    console.log("👤 FS Totals:", fsTotals);
-
-    localStorage.setItem("dashboardTotals", JSON.stringify(totals));
-    localStorage.setItem("fsTotals", JSON.stringify(fsTotals));
-
-    const fmt = n => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 3 });
-    document.getElementById("result").innerHTML = `
-      <h3>✅ Data Uploaded Successfully</h3>
-      <p><strong>KM6 (Baguio)</strong><br>
-      Gross: ${fmt(totals.KM6.gross)}<br>
-      Rejection: ${fmt(totals.KM6.reject)}<br>
-      BO: ${fmt(totals.KM6.bo)}<br>
-      Net: ${fmt(totals.KM6.net)}</p>
-      <p><strong>KML (La Union)</strong><br>
-      Gross: ${fmt(totals.KML.gross)}<br>
-      Rejection: ${fmt(totals.KML.reject)}<br>
-      BO: ${fmt(totals.KML.bo)}<br>
-      Net: ${fmt(totals.KML.net)}</p>
-      <p><em>Click "Go Back to Dashboard" to refresh data.</em></p>
-    `;
-    document.getElementById("backButton").style.display = "inline-block";
-  };
-  reader.readAsArrayBuffer(file);
-}
-</script>
-
 </body>
 </html>

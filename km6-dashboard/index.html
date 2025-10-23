@@ -519,6 +519,44 @@ window.addEventListener("load", () => {
   });
 });
 </script>
+<!-- ===== Firebase Cloud Sync (add this before your other scripts) ===== -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+  import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCStpCWdRO770N4SpH3GKYwp9pg1kP6_O4",
+    authDomain: "km6-dashboard.firebaseapp.com",
+    projectId: "km6-dashboard",
+    storageBucket: "km6-dashboard.firebasestorage.app",
+    messagingSenderId: "309068846407",
+    appId: "1:309068846407:web:68d51a21f6ab238fa1a862"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  async function loadDashboardData() {
+    try {
+      const totalsSnap = await getDoc(doc(db, "km6_dashboard_data", "dashboardTotals"));
+      const fsSnap = await getDoc(doc(db, "km6_dashboard_data", "fsTotals"));
+
+      if (totalsSnap.exists()) localStorage.setItem("dashboardTotals", JSON.stringify(totalsSnap.data()));
+      if (fsSnap.exists()) localStorage.setItem("fsTotals", JSON.stringify(fsSnap.data()));
+
+      console.log("✅ Data loaded from Firestore (KM6 Cloud).");
+    } catch (err) {
+      console.warn("⚠️ Firestore load failed, using localStorage backup.", err);
+    }
+  }
+
+  window.addEventListener("DOMContentLoaded", loadDashboardData);
+</script>
+
+<!-- ===== Your existing scripts start here (keep them as-is) ===== -->
+<script>
+  // ... dropdown menu, logout redirect, data rendering, etc.
+</script>
 
 </body>
 </html>
