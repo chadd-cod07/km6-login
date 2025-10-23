@@ -473,20 +473,52 @@ window.addEventListener("load", () => {
     }
   });
 });
+  </script>
+  <script>
 window.addEventListener("load", () => {
+  // Retrieve saved data
   const totals = JSON.parse(localStorage.getItem("dashboardTotals") || "{}");
   const fsTotals = JSON.parse(localStorage.getItem("fsTotals") || "{}");
 
-  if (!totals || Object.keys(totals).length === 0) {
-    console.warn("⚠️ No saved dashboard data found. Please upload a file.");
+  if (Object.keys(totals).length === 0) {
+    console.warn("⚠️ No saved dashboard data found. Please upload a new Excel file.");
     return;
   }
 
-  // Trigger your normal update/render functions here
-  // Example:
-  updateBranchSummary(totals);
-  updateFSTables(fsTotals);
+  console.log("✅ Restored saved data:", totals, fsTotals);
+
+  // === Update Branch Summary ===
+  document.querySelectorAll(".table-section table tbody tr").forEach((row) => {
+    const branch = row.cells[0]?.innerText.trim().toUpperCase();
+    if (!branch) return;
+
+    if (branch.includes("BAGUIO")) {
+      row.cells[1].innerText = totals.KM6.gross.toLocaleString();
+      row.cells[2].innerText = totals.KM6.reject.toLocaleString();
+      row.cells[3].innerText = totals.KM6.bo.toLocaleString();
+      row.cells[4].innerText = totals.KM6.net.toLocaleString();
+    }
+    if (branch.includes("LA UNION")) {
+      row.cells[1].innerText = totals.KML.gross.toLocaleString();
+      row.cells[2].innerText = totals.KML.reject.toLocaleString();
+      row.cells[3].innerText = totals.KML.bo.toLocaleString();
+      row.cells[4].innerText = totals.KML.net.toLocaleString();
+    }
+  });
+
+  // === Update Salesperson Tables ===
+  document.querySelectorAll(".table-section table tbody tr").forEach((row) => {
+    const fsName = row.cells[0]?.innerText.trim().toUpperCase();
+    if (fsTotals[fsName]) {
+      const fs = fsTotals[fsName];
+      row.cells[1].innerText = fs.gross.toLocaleString();
+      row.cells[2].innerText = fs.reject.toLocaleString();
+      row.cells[3].innerText = fs.bo.toLocaleString();
+      row.cells[4].innerText = fs.net.toLocaleString();
+    }
+  });
 });
-  </script>
+</script>
+
 </body>
 </html>
