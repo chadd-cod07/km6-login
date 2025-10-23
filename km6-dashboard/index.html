@@ -557,6 +557,57 @@ window.addEventListener("load", () => {
 <script>
   // ... dropdown menu, logout redirect, data rendering, etc.
 </script>
+<!-- === Firebase Sync for Dashboard === -->
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore-compat.js"></script>
+<script>
+  // Firebase configuration
+  const firebaseConfig = {
+    apiKey: "AIzaSyCStpCWdRO770N4SpH3GKYwp9pg1kP6_O4",
+    authDomain: "km6-dashboard.firebaseapp.com",
+    projectId: "km6-dashboard",
+    storageBucket: "km6-dashboard.firebasestorage.app",
+    messagingSenderId: "309068846407",
+    appId: "1:309068846407:web:68d51a21f6ab238fa1a862"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  // Load data when page opens
+  async function loadDashboardFromFirebase() {
+    try {
+      const doc = await db.collection("km6_dashboard_data").doc("dashboardTotals").get();
+      const fsDoc = await db.collection("km6_dashboard_data").doc("fsTotals").get();
+
+      if (doc.exists && fsDoc.exists) {
+        const totals = doc.data();
+        const fsTotals = fsDoc.data();
+
+        console.log("☁️ Firebase data loaded:", totals, fsTotals);
+
+        // Store in localStorage for offline access
+        localStorage.setItem("dashboardTotals", JSON.stringify(totals));
+        localStorage.setItem("fsTotals", JSON.stringify(fsTotals));
+
+        // Trigger your existing display function
+        if (typeof updateDashboardDisplay === "function") {
+          updateDashboardDisplay();
+        } else {
+          console.warn("⚠️ No updateDashboardDisplay() found, data loaded only to localStorage.");
+        }
+      } else {
+        console.warn("⚠️ No Firebase data found yet.");
+      }
+    } catch (err) {
+      console.error("❌ Error loading Firebase data:", err);
+    }
+  }
+
+  // Run it when page loads
+  document.addEventListener("DOMContentLoaded", loadDashboardFromFirebase);
+</script>
 
 </body>
 </html>
+
