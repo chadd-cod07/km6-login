@@ -439,6 +439,54 @@
         }
       });
     });
+    // === Auto-sum for "Total KM6" row ===
+window.addEventListener("load", () => {
+  const saved = localStorage.getItem("dashboardTotals");
+  if (!saved) return;
+
+  const totals = JSON.parse(saved);
+  const rows = document.querySelectorAll(".table-section table tbody tr");
+
+  rows.forEach((row) => {
+    const branch = row.cells[0]?.innerText.trim().toUpperCase();
+    if (branch && branch.includes("TOTAL KM6")) {
+      const gross = (totals.KM6.gross || 0) + (totals.KML.gross || 0);
+      const reject = (totals.KM6.reject || 0) + (totals.KML.reject || 0);
+      const bo = (totals.KM6.bo || 0) + (totals.KML.bo || 0);
+      const net = (totals.KM6.net || 0) + (totals.KML.net || 0);
+      const target = parseFloat(row.cells[5].innerText.replace(/,/g, "")) || 0;
+
+      row.cells[1].innerText = gross.toLocaleString(undefined, { minimumFractionDigits: 3 });
+      row.cells[2].innerText = reject.toLocaleString(undefined, { minimumFractionDigits: 3 });
+      row.cells[3].innerText = bo.toLocaleString(undefined, { minimumFractionDigits: 3 });
+      row.cells[4].innerText = net.toLocaleString(undefined, { minimumFractionDigits: 3 });
+
+      const percent = target ? (net / target) * 100 : 0;
+      row.cells[6].innerText = percent.toFixed(2) + "%";
+
+      const balance = net - target;
+      row.cells[7].innerText =
+        (balance < 0 ? "(" : "") +
+        Math.abs(balance).toLocaleString(undefined, { minimumFractionDigits: 3 }) +
+        (balance < 0 ? ")" : "");
+      row.cells[7].style.color = balance < 0 ? "red" : "green";
+    }
+  });
+});
+window.addEventListener("load", () => {
+  const totals = JSON.parse(localStorage.getItem("dashboardTotals") || "{}");
+  const fsTotals = JSON.parse(localStorage.getItem("fsTotals") || "{}");
+
+  if (!totals || Object.keys(totals).length === 0) {
+    console.warn("⚠️ No saved dashboard data found. Please upload a file.");
+    return;
+  }
+
+  // Trigger your normal update/render functions here
+  // Example:
+  updateBranchSummary(totals);
+  updateFSTables(fsTotals);
+});
   </script>
 </body>
 </html>

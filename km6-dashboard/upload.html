@@ -54,53 +54,80 @@ function handleFile(event) {
     const sheetGross = workbook.Sheets["Gross"];
     const sheetNet = workbook.Sheets["P_Net.Inv"];
     if (!sheetGross || !sheetNet) {
-      alert("❌ Missing required sheets (Gross or P_Net.Inv).");
+      alert("❌ Missing sheet(s): please ensure both 'Gross' and 'P_Net.Inv' exist.");
       return;
     }
 
     const grossRows = XLSX.utils.sheet_to_json(sheetGross);
     const netRows = XLSX.utils.sheet_to_json(sheetNet);
 
-    const getVal = (row, names) => {
-      const lower = Object.keys(row).reduce((a, k) => { a[k.toLowerCase()] = row[k]; return a; }, {});
-      for (let n of names) {
-        const key = n.toLowerCase();
-        if (lower[key] !== undefined && lower[key] !== "") {
-          const v = parseFloat(String(lower[key]).replace(/,/g, ""));
+    // Utility: normalize keys
+    const normalizeKeys = (row) => {
+      const obj = {};
+      for (const k in row) {
+        obj[k.toLowerCase().trim().replace(/\s+/g, " ")] = row[k];
+      }
+      return obj;
+    };
+
+    const getVal = (row, keys) => {
+      const r = normalizeKeys(row);
+      for (const k of keys) {
+        const key = k.toLowerCase().trim().replace(/\s+/g, " ");
+        if (r[key] !== undefined && r[key] !== "") {
+          const v = parseFloat(String(r[key]).replace(/,/g, ""));
           if (!isNaN(v)) return v;
         }
       }
       return 0;
     };
-    const getText = (row, names) => {
-      const lower = Object.keys(row).reduce((a, k) => { a[k.toLowerCase()] = row[k]; return a; }, {});
-      for (let n of names) {
-        const key = n.toLowerCase();
-        if (lower[key] !== undefined && lower[key] !== null) {
-          return String(lower[key]).trim();
-        }
+
+    const getText = (row, keys) => {
+      const r = normalizeKeys(row);
+      for (const k of keys) {
+        const key = k.toLowerCase().trim().replace(/\s+/g, " ");
+        if (r[key] !== undefined && r[key] !== null) return String(r[key]).trim();
       }
       return "";
     };
 
-    // === Totals by branch (KM6=Baguio, KML=La Union)
     const totals = {
       KM6: { gross: 0, reject: 0, bo: 0, net: 0 },
       KML: { gross: 0, reject: 0, bo: 0, net: 0 }
     };
 
+    const fsTotals = {};
+
+    // === Process "Gross" sheet
     grossRows.forEach(r => {
       const branch = getText(r, ["Branch Name"]).toUpperCase();
-      const val = getVal(r, ["Sum of Order Amount", "GROSS", "TOTAL INVOICE"]);
-      if (branch.includes("KM6") || branch.includes("BAGUIO")) totals.KM6.gross += val;
-      if (branch.includes("KML") || branch.includes("LA UNION")) totals.KML.gross += val;
+      const fs = getText(r, ["fs", "FS", "Salesman", "Employee Name"]);
+      const gross = getVal(r, ["Sum of Order Amount", "GROSS", "TOTAL INVOICE"]);
+
+      if (!fs) return;
+      const key = fs.toUpperCase();
+      if (!fsTotals[key]) fsTotals[key] = { gross: 0, reject: 0, bo: 0, net: 0 };
+      fsTotals[key].gross += gross;
+
+      if (branch.includes("KM6") || branch.includes("BAGUIO")) totals.KM6.gross += gross;
+      if (branch.includes("KML") || branch.includes("LA UNION")) totals.KML.gross += gross;
     });
 
+    // === Process "P_Net.Inv" sheet
     netRows.forEach(r => {
       const branch = getText(r, ["Branch Name"]).toUpperCase();
+      const fs = getText(r, ["fs", "FS", "Salesman", "Employee Name"]);
       const reject = getVal(r, ["TOTAL REJECTION", "REJECTION"]);
       const bo = getVal(r, ["TOTAL BO", "BO", "B.O AMOUNT"]);
-      const net = getVal(r, ["TOTAL NET", "NET", "NET SALES"]);
+      const net = getVal(r, ["TOTAL NET", "NET SALES", "NET"]);
+
+      if (!fs) return;
+      const key = fs.toUpperCase();
+      if (!fsTotals[key]) fsTotals[key] = { gross: 0, reject: 0, bo: 0, net: 0 };
+      fsTotals[key].reject += reject;
+      fsTotals[key].bo += bo;
+      fsTotals[key].net += net;
+
       if (branch.includes("KM6") || branch.includes("BAGUIO")) {
         totals.KM6.reject += reject;
         totals.KM6.bo += bo;
@@ -113,36 +140,13 @@ function handleFile(event) {
       }
     });
 
-    // === FS (field salesperson) totals
-    const fsTotals = {}; // key = FS name uppercase
-    const addFS = (fsName, type, val) => {
-      if (!fsName) return;
-      const key = fsName.toUpperCase().trim();
-      if (!fsTotals[key]) fsTotals[key] = { gross: 0, reject: 0, bo: 0, net: 0 };
-      fsTotals[key][type] += val;
-    };
+    // ✅ Debug: show what’s captured
+    console.log("📊 Branch Totals:", totals);
+    console.log("👤 FS Totals:", fsTotals);
 
-    grossRows.forEach(r => {
-      const fs = getText(r, ["fs", "FS", "Employee Name", "Salesman", "Name"]);
-      const gross = getVal(r, ["Sum of Order Amount", "GROSS", "TOTAL INVOICE"]);
-      addFS(fs, "gross", gross);
-    });
-
-    netRows.forEach(r => {
-      const fs = getText(r, ["fs", "FS", "Employee Name", "Salesman", "Name"]);
-      const reject = getVal(r, ["TOTAL REJECTION", "REJECTION"]);
-      const bo = getVal(r, ["TOTAL BO", "BO"]);
-      const net = getVal(r, ["TOTAL NET", "NET SALES", "NET"]);
-      addFS(fs, "reject", reject);
-      addFS(fs, "bo", bo);
-      addFS(fs, "net", net);
-    });
-
-    // === Save
     localStorage.setItem("dashboardTotals", JSON.stringify(totals));
     localStorage.setItem("fsTotals", JSON.stringify(fsTotals));
 
-    // === Feedback
     const fmt = n => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 3 });
     document.getElementById("result").innerHTML = `
       <h3>✅ Data Uploaded Successfully</h3>
@@ -156,7 +160,8 @@ function handleFile(event) {
       Rejection: ${fmt(totals.KML.reject)}<br>
       BO: ${fmt(totals.KML.bo)}<br>
       Net: ${fmt(totals.KML.net)}</p>
-      <p><em>Click "Go Back to Dashboard" to refresh data.</em></p>`;
+      <p><em>Click "Go Back to Dashboard" to refresh data.</em></p>
+    `;
     document.getElementById("backButton").style.display = "inline-block";
   };
   reader.readAsArrayBuffer(file);
