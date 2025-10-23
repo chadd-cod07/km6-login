@@ -349,7 +349,8 @@
             <td class="negative">(6,401,732.80)</td>
           </tr>
           <tr>
-            <td>Mr Adef Padiacheo</td>
+            <td>MC ARDEL CACHICHO
+</td>
             <td>4,702,779.85</td>
             <td>80,271.72</td>
             <td>89,365.24</td>
@@ -530,5 +531,40 @@
       });
     });
   </script>
+  <script>
+// === Dashboard Auto Update ===
+window.addEventListener("DOMContentLoaded", () => {
+  const totals = JSON.parse(localStorage.getItem("dashboardTotals") || "{}");
+  const fsTotals = JSON.parse(localStorage.getItem("fsTotals") || "{}");
+
+  // --- Update Branch Summary ---
+  const rows = document.querySelectorAll("section.table-section table tbody tr");
+  rows.forEach(row => {
+    const branch = row.cells[0]?.innerText.trim().toUpperCase();
+    if (!branch) return;
+
+    if (branch.includes("BAGUIO") || branch.includes("KM6")) {
+      row.cells[1].innerText = totals.KM6.gross?.toLocaleString() || "0";
+      row.cells[2].innerText = totals.KM6.reject?.toLocaleString() || "0";
+      row.cells[3].innerText = totals.KM6.bo?.toLocaleString() || "0";
+      row.cells[4].innerText = totals.KM6.net?.toLocaleString() || "0";
+    } else if (branch.includes("LA UNION") || branch.includes("KML")) {
+      row.cells[1].innerText = totals.KML.gross?.toLocaleString() || "0";
+      row.cells[2].innerText = totals.KML.reject?.toLocaleString() || "0";
+      row.cells[3].innerText = totals.KML.bo?.toLocaleString() || "0";
+      row.cells[4].innerText = totals.KML.net?.toLocaleString() || "0";
+    }
+  });
+
+  // --- Update FS Gross (KCM, LU, Baguio sections) ---
+  const fsRows = document.querySelectorAll("section.table-group table tbody tr");
+  fsRows.forEach(row => {
+    const name = row.cells[0]?.innerText.trim().toUpperCase();
+    if (fsTotals[name]) {
+      row.cells[1].innerText = fsTotals[name].gross.toLocaleString();
+    }
+  });
+});
+</script>
 </body>
 </html>

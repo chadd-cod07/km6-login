@@ -64,8 +64,14 @@
   <button id="backButton" style="display:none;">Go Back to Dashboard</button>
 <script>
 document.getElementById('fileInput').addEventListener('change', handleFile, false);
+
 document.getElementById('backButton').addEventListener('click', () => {
-  window.location.href = "https://chadd-cod07.github.io/km6-login/km6-dashboard/index.html";
+  // ✅ Redirect depending on environment
+  if (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost") {
+    window.location.href = "index.html"; // Local (VS Code Live Server)
+  } else {
+    window.location.href = "https://chadd-cod07.github.io/km6-login/km6-dashboard/index.html"; // GitHub
+  }
 });
 
 function handleFile(event) {
@@ -77,25 +83,30 @@ function handleFile(event) {
     const data = new Uint8Array(e.target.result);
     const workbook = XLSX.read(data, { type: 'array' });
 
-    const sheet = workbook.Sheets["P_Net.Inv"];
-    if (!sheet) {
-      alert("⚠️ Sheet 'P_Net.Inv' not found in Excel file!");
+    // ✅ Try reading both sheets
+    const sheetGross = workbook.Sheets["Gross"];
+    const sheetNet = workbook.Sheets["P_Net.Inv"];
+
+    if (!sheetNet) {
+      alert("⚠️ Missing sheet: 'P_Net.Inv'");
+      return;
+    }
+    if (!sheetGross) {
+      alert("⚠️ Missing sheet: 'Gross'");
       return;
     }
 
-    const rows = XLSX.utils.sheet_to_json(sheet);
-    if (rows.length === 0) {
-      alert("⚠️ No data found in 'P_Net.Inv' sheet!");
-      return;
-    }
+    // === Convert both sheets to JSON ===
+    const grossRows = XLSX.utils.sheet_to_json(sheetGross);
+    const netRows = XLSX.utils.sheet_to_json(sheetNet);
 
-    // Helper for safe matching
-    const getVal = (row, nameList) => {
-      const lower = Object.keys(row).reduce((obj, k) => {
-        obj[k.toLowerCase().trim()] = row[k];
-        return obj;
+    // === Helper for flexible matching ===
+    const getVal = (row, names) => {
+      const lower = Object.keys(row).reduce((acc, k) => {
+        acc[k.toLowerCase().trim()] = row[k];
+        return acc;
       }, {});
-      for (let name of nameList) {
+      for (let name of names) {
         const key = name.toLowerCase().trim();
         if (lower[key] !== undefined && lower[key] !== "")
           return parseFloat(String(lower[key]).replace(/,/g, "")) || 0;
@@ -103,29 +114,31 @@ function handleFile(event) {
       return 0;
     };
 
+    // === Initialize totals ===
     let totals = {
-      KM6: { reject: 0, bo: 0, net: 0 },
-      KML: { reject: 0, bo: 0, net: 0 },
+      KM6: { gross: 0, reject: 0, bo: 0, net: 0 },
+      KML: { gross: 0, reject: 0, bo: 0, net: 0 }
     };
-    let fsTotals = {};
 
-    rows.forEach(r => {
-      const fs = String(r["FS"] || "").trim();
-      const branch = String(r["Branch Name"] || "").trim().toUpperCase();
+    // ✅ Get Gross totals from “Gross” sheet
+    grossRows.forEach(r => {
+      const branch = String(r["Branch Name"] || "").toUpperCase();
+      const val = getVal(r, ["Sum of Order Amount", "GROSS", "TOTAL GROSS", "TOTAL INVOICE"]);
 
+      if (branch.includes("BAGUIO") || branch.includes("KM6")) {
+        totals.KM6.gross += val;
+      } else if (branch.includes("LA UNION") || branch.includes("KML")) {
+        totals.KML.gross += val;
+      }
+    });
+
+    // ✅ Get Rejection, BO, Net from “P_Net.Inv” sheet
+    netRows.forEach(r => {
+      const branch = String(r["Branch Name"] || "").toUpperCase();
       const reject = getVal(r, ["REJECTION", "TOTAL REJECTION", "REJ"]);
       const bo = getVal(r, ["BO", "TOTAL BO", "B.O.", "B.O AMOUNT"]);
       const net = getVal(r, ["NET", "TOTAL NET", "NET SALES"]);
 
-      if (fs && !fs.toUpperCase().includes("GRAND TOTAL")) {
-        const fsKey = fs.toUpperCase();
-        if (!fsTotals[fsKey]) fsTotals[fsKey] = { reject: 0, bo: 0, net: 0 };
-        fsTotals[fsKey].reject += reject;
-        fsTotals[fsKey].bo += bo;
-        fsTotals[fsKey].net += net;
-      }
-
-      // Detect branch rows
       if (branch.includes("BAGUIO") || branch.includes("KM6")) {
         totals.KM6.reject += reject;
         totals.KM6.bo += bo;
@@ -137,19 +150,21 @@ function handleFile(event) {
       }
     });
 
-    // Save data to localStorage
+    // ✅ Save data
     localStorage.setItem("dashboardTotals", JSON.stringify(totals));
-    localStorage.setItem("fsTotals", JSON.stringify(fsTotals));
 
-    // Show confirmation
+    // ✅ Display results
     document.getElementById("result").innerHTML = `
       <h3>✅ Data Uploaded Successfully</h3>
+
       <p><strong>KM6 (Baguio)</strong><br>
+        Gross: ${totals.KM6.gross.toLocaleString()}<br>
         Rejection: ${totals.KM6.reject.toLocaleString()}<br>
         BO: ${totals.KM6.bo.toLocaleString()}<br>
         Net: ${totals.KM6.net.toLocaleString()}</p>
 
       <p><strong>KML (La Union)</strong><br>
+        Gross: ${totals.KML.gross.toLocaleString()}<br>
         Rejection: ${totals.KML.reject.toLocaleString()}<br>
         BO: ${totals.KML.bo.toLocaleString()}<br>
         Net: ${totals.KML.net.toLocaleString()}</p>
@@ -162,5 +177,6 @@ function handleFile(event) {
   reader.readAsArrayBuffer(file);
 }
 </script>
+
 </body>
 </html>
