@@ -87,7 +87,7 @@
         <div class="menu-icon">☰</div>
         <div class="dropdown-menu" id="dropdownMenu">
           <a href="logout.html">🔒 Log Out</a>
-          <a href="upload.html">⬆️ Upload Excel File</a>
+          <a href="https://chadd-cod07.github.io/km6-login/km6-dashboard/upload.html">⬆️ Upload Excel File</a>
           <a href="settings.html">⚙️ Settings</a>
         </div>
       </div>
@@ -382,25 +382,24 @@
       </table>
     </div>
   </section>
-
-  <!-- ===== Dropdown JS ===== -->
+      <!-- ===== Dropdown + Dashboard Update Script ===== -->
   <script>
-    const menuIcon = document.querySelector('.menu-icon');
-    const dropdownMenu = document.getElementById('dropdownMenu');
+    // ==== Dropdown Menu ====
+    const menuIcon = document.querySelector(".menu-icon");
+    const dropdownMenu = document.getElementById("dropdownMenu");
 
-    menuIcon.addEventListener('click', () => {
+    menuIcon.addEventListener("click", () => {
       dropdownMenu.style.display =
-        dropdownMenu.style.display === 'block' ? 'none' : 'block';
+        dropdownMenu.style.display === "block" ? "none" : "block";
     });
 
-    window.addEventListener('click', (e) => {
-      if (!e.target.closest('.menu-container')) {
-        dropdownMenu.style.display = 'none';
+    window.addEventListener("click", (e) => {
+      if (!e.target.closest(".menu-container")) {
+        dropdownMenu.style.display = "none";
       }
     });
-  </script>
 
-  <script>
+    // ==== Nav Links ====
     document.getElementById("totalSalesLink").addEventListener("click", () => {
       alert("Total Sales page coming soon!");
     });
@@ -411,14 +410,125 @@
       alert("Focus 30 page coming soon!");
     });
 
-    // ✅ Logout redirect to login
+    // ==== Logout Redirect ====
     const logoutLink = document.querySelector('.dropdown-menu a[href="logout.html"]');
     if (logoutLink) {
-      logoutLink.addEventListener('click', function (event) {
+      logoutLink.addEventListener("click", function (event) {
         event.preventDefault();
         window.location.href = "https://chadd-cod07.github.io/km6-login/";
       });
     }
+
+    // ==== Branch Summary Auto Update ====
+    window.addEventListener("load", () => {
+      const saved = localStorage.getItem("dashboardTotals");
+      if (!saved) return;
+
+      const totals = JSON.parse(saved);
+      const rows = document.querySelectorAll(".table-section table tbody tr");
+
+      rows.forEach((row) => {
+        const branch = row.cells[0]?.innerText.trim().toUpperCase();
+        if (!branch) return;
+
+        // === KM6 / Baguio ===
+        if (branch.includes("BAGUIO") || branch.includes("KM6")) {
+          row.cells[1].innerText = totals.KM6.gross.toLocaleString();
+          row.cells[2].innerText = totals.KM6.reject.toLocaleString();
+          row.cells[3].innerText = totals.KM6.bo.toLocaleString();
+          row.cells[4].innerText = totals.KM6.net.toLocaleString();
+
+          const target = parseFloat(row.cells[5].innerText.replace(/,/g, "")) || 0;
+          const balance = totals.KM6.net - target;
+          row.cells[7].innerText =
+            (balance < 0 ? "(" : "") +
+            Math.abs(balance).toLocaleString(undefined, { minimumFractionDigits: 2 }) +
+            (balance < 0 ? ")" : "");
+          row.cells[7].style.color = balance < 0 ? "red" : "green";
+        }
+
+        // === KML / La Union ===
+        if (branch.includes("LA UNION") || branch.includes("KML")) {
+          row.cells[1].innerText = totals.KML.gross.toLocaleString();
+          row.cells[2].innerText = totals.KML.reject.toLocaleString();
+          row.cells[3].innerText = totals.KML.bo.toLocaleString();
+          row.cells[4].innerText = totals.KML.net.toLocaleString();
+
+          const target = parseFloat(row.cells[5].innerText.replace(/,/g, "")) || 0;
+          const balance = totals.KML.net - target;
+          row.cells[7].innerText =
+            (balance < 0 ? "(" : "") +
+            Math.abs(balance).toLocaleString(undefined, { minimumFractionDigits: 2 }) +
+            (balance < 0 ? ")" : "");
+          row.cells[7].style.color = balance < 0 ? "red" : "green";
+        }
+      });
+    });
+
+    // ==== FS Auto Update ====
+    window.addEventListener("load", () => {
+      const savedFS = localStorage.getItem("fsTotals");
+      if (!savedFS) return;
+
+      const fsTotals = JSON.parse(savedFS);
+      const allRows = document.querySelectorAll("section.table-group table tbody tr");
+
+      allRows.forEach((row) => {
+        const nameCell = row.cells[0];
+        if (!nameCell) return;
+
+        const fsName = nameCell.innerText.trim().toUpperCase();
+
+        // Skip totals and blank rows
+        if (fsName.startsWith("TOTAL") || fsName === "" || fsName === "-") return;
+
+        if (fsTotals[fsName]) {
+          const fs = fsTotals[fsName];
+
+          if (row.cells[2]) row.cells[2].innerText = fs.reject.toLocaleString();
+          if (row.cells[3]) row.cells[3].innerText = fs.bo.toLocaleString();
+          if (row.cells[4]) row.cells[4].innerText = fs.net.toLocaleString();
+
+          const target = parseFloat(row.cells[5]?.innerText.replace(/,/g, "")) || 0;
+          const balance = fs.net - target;
+          if (row.cells[7]) {
+            row.cells[7].innerText =
+              (balance < 0 ? "(" : "") +
+              Math.abs(balance).toLocaleString(undefined, { minimumFractionDigits: 2 }) +
+              (balance < 0 ? ")" : "");
+            row.cells[7].style.color = balance < 0 ? "red" : "green";
+          }
+        }
+      });
+
+      // === Auto-calc TOTAL rows (sum of FS under same section)
+      const groups = document.querySelectorAll("section.table-group");
+      groups.forEach((group) => {
+        const fsRows = group.querySelectorAll("tbody tr:not(.total)");
+        const totalRow = group.querySelector("tbody tr.total");
+        if (!fsRows.length || !totalRow) return;
+
+        let totalReject = 0, totalBO = 0, totalNet = 0;
+
+        fsRows.forEach((r) => {
+          totalReject += parseFloat(r.cells[2]?.innerText.replace(/,/g, "")) || 0;
+          totalBO += parseFloat(r.cells[3]?.innerText.replace(/,/g, "")) || 0;
+          totalNet += parseFloat(r.cells[4]?.innerText.replace(/,/g, "")) || 0;
+        });
+
+        totalRow.cells[2].innerText = totalReject.toLocaleString();
+        totalRow.cells[3].innerText = totalBO.toLocaleString();
+        totalRow.cells[4].innerText = totalNet.toLocaleString();
+
+        const target = parseFloat(totalRow.cells[5]?.innerText.replace(/,/g, "")) || 0;
+        const balance = totalNet - target;
+        totalRow.cells[7].innerText =
+          (balance < 0 ? "(" : "") +
+          Math.abs(balance).toLocaleString(undefined, { minimumFractionDigits: 2 }) +
+          (balance < 0 ? ")" : "");
+        totalRow.cells[7].style.color = balance < 0 ? "red" : "green";
+      });
+    });
   </script>
 </body>
 </html>

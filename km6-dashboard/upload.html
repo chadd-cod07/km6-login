@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Upload Excel File - KM6 Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f6f8fa;
+      text-align: center;
+      padding: 50px;
+    }
+
+    h2 {
+      color: #00843d;
+    }
+
+    input[type="file"] {
+      padding: 10px;
+      border: 2px dashed #00843d;
+      border-radius: 10px;
+      background: #fff;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+
+    .result {
+      margin-top: 30px;
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      display: inline-block;
+      text-align: left;
+      width: 320px;
+    }
+
+    button {
+      background-color: #00843d;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+
+    button:hover {
+      background-color: #006f32;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>📊 Upload Excel File to Update Dashboard</h2>
+  <p>Select your latest <strong>dataweb.xlsx</strong> file below:</p>
+  <input type="file" id="fileInput" accept=".xlsx, .xls" />
+
+  <div class="result" id="result"></div>
+
+  <button id="backButton" style="display:none;">Go Back to Dashboard</button>
+<script>
+document.getElementById('fileInput').addEventListener('change', handleFile, false);
+document.getElementById('backButton').addEventListener('click', () => {
+  window.location.href = "https://chadd-cod07.github.io/km6-login/km6-dashboard/index.html";
+});
+
+function handleFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    const data = new Uint8Array(e.target.result);
+    const workbook = XLSX.read(data, { type: 'array' });
+
+    const sheet = workbook.Sheets["P_Net.Inv"];
+    if (!sheet) {
+      alert("⚠️ Sheet 'P_Net.Inv' not found in Excel file!");
+      return;
+    }
+
+    const rows = XLSX.utils.sheet_to_json(sheet);
+    if (rows.length === 0) {
+      alert("⚠️ No data found in 'P_Net.Inv' sheet!");
+      return;
+    }
+
+    // Helper for safe matching
+    const getVal = (row, nameList) => {
+      const lower = Object.keys(row).reduce((obj, k) => {
+        obj[k.toLowerCase().trim()] = row[k];
+        return obj;
+      }, {});
+      for (let name of nameList) {
+        const key = name.toLowerCase().trim();
+        if (lower[key] !== undefined && lower[key] !== "")
+          return parseFloat(String(lower[key]).replace(/,/g, "")) || 0;
+      }
+      return 0;
+    };
+
+    let totals = {
+      KM6: { reject: 0, bo: 0, net: 0 },
+      KML: { reject: 0, bo: 0, net: 0 },
+    };
+    let fsTotals = {};
+
+    rows.forEach(r => {
+      const fs = String(r["FS"] || "").trim();
+      const branch = String(r["Branch Name"] || "").trim().toUpperCase();
+
+      const reject = getVal(r, ["REJECTION", "TOTAL REJECTION", "REJ"]);
+      const bo = getVal(r, ["BO", "TOTAL BO", "B.O.", "B.O AMOUNT"]);
+      const net = getVal(r, ["NET", "TOTAL NET", "NET SALES"]);
+
+      if (fs && !fs.toUpperCase().includes("GRAND TOTAL")) {
+        const fsKey = fs.toUpperCase();
+        if (!fsTotals[fsKey]) fsTotals[fsKey] = { reject: 0, bo: 0, net: 0 };
+        fsTotals[fsKey].reject += reject;
+        fsTotals[fsKey].bo += bo;
+        fsTotals[fsKey].net += net;
+      }
+
+      // Detect branch rows
+      if (branch.includes("BAGUIO") || branch.includes("KM6")) {
+        totals.KM6.reject += reject;
+        totals.KM6.bo += bo;
+        totals.KM6.net += net;
+      } else if (branch.includes("LA UNION") || branch.includes("KML")) {
+        totals.KML.reject += reject;
+        totals.KML.bo += bo;
+        totals.KML.net += net;
+      }
+    });
+
+    // Save data to localStorage
+    localStorage.setItem("dashboardTotals", JSON.stringify(totals));
+    localStorage.setItem("fsTotals", JSON.stringify(fsTotals));
+
+    // Show confirmation
+    document.getElementById("result").innerHTML = `
+      <h3>✅ Data Uploaded Successfully</h3>
+      <p><strong>KM6 (Baguio)</strong><br>
+        Rejection: ${totals.KM6.reject.toLocaleString()}<br>
+        BO: ${totals.KM6.bo.toLocaleString()}<br>
+        Net: ${totals.KM6.net.toLocaleString()}</p>
+
+      <p><strong>KML (La Union)</strong><br>
+        Rejection: ${totals.KML.reject.toLocaleString()}<br>
+        BO: ${totals.KML.bo.toLocaleString()}<br>
+        Net: ${totals.KML.net.toLocaleString()}</p>
+
+      <p><em>Click "Go Back to Dashboard" to refresh data.</em></p>
+    `;
+    document.getElementById("backButton").style.display = "inline-block";
+  };
+
+  reader.readAsArrayBuffer(file);
+}
+</script>
+</body>
+</html>
