@@ -35,11 +35,10 @@
 document.getElementById('fileInput').addEventListener('change', handleFile, false);
 
 document.getElementById('backButton').addEventListener('click', () => {
-  // Redirect depending on environment
   if (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost") {
-    window.location.href = "index.html"; // Local (VS Code Live Server)
+    window.location.href = "index.html";
   } else {
-    window.location.href = "https://chadd-cod07.github.io/km6-login/km6-dashboard/index.html"; // GitHub
+    window.location.href = "https://chadd-cod07.github.io/km6-login/km6-dashboard/index.html";
   }
 });
 
@@ -52,118 +51,114 @@ function handleFile(event) {
     const data = new Uint8Array(e.target.result);
     const workbook = XLSX.read(data, { type: 'array' });
 
-    // Try reading needed sheets
     const sheetGross = workbook.Sheets["Gross"];
     const sheetNet = workbook.Sheets["P_Net.Inv"];
+    if (!sheetGross || !sheetNet) {
+      alert("❌ Missing required sheets (Gross or P_Net.Inv).");
+      return;
+    }
 
-    if (!sheetNet) { alert("⚠️ Missing sheet: 'P_Net.Inv'"); return; }
-    if (!sheetGross) { alert("⚠️ Missing sheet: 'Gross'"); return; }
-
-    // To JSON
     const grossRows = XLSX.utils.sheet_to_json(sheetGross);
     const netRows = XLSX.utils.sheet_to_json(sheetNet);
 
-    // Helper: flexible field access + numeric parsing
     const getVal = (row, names) => {
-      const lower = Object.keys(row).reduce((acc, k) => { acc[String(k).toLowerCase().trim()] = row[k]; return acc; }, {});
-      for (let name of names) {
-        const key = String(name).toLowerCase().trim();
+      const lower = Object.keys(row).reduce((a, k) => { a[k.toLowerCase()] = row[k]; return a; }, {});
+      for (let n of names) {
+        const key = n.toLowerCase();
         if (lower[key] !== undefined && lower[key] !== "") {
-          const raw = String(lower[key]).toString().replace(/,/g, "");
-          const v = parseFloat(raw);
+          const v = parseFloat(String(lower[key]).replace(/,/g, ""));
           if (!isNaN(v)) return v;
         }
       }
       return 0;
     };
     const getText = (row, names) => {
-      const lower = Object.keys(row).reduce((acc, k) => { acc[String(k).toLowerCase().trim()] = row[k]; return acc; }, {});
-      for (let name of names) {
-        const key = String(name).toLowerCase().trim();
-        if (lower[key] !== undefined && lower[key] !== null) return String(lower[key]).trim();
+      const lower = Object.keys(row).reduce((a, k) => { a[k.toLowerCase()] = row[k]; return a; }, {});
+      for (let n of names) {
+        const key = n.toLowerCase();
+        if (lower[key] !== undefined && lower[key] !== null) {
+          return String(lower[key]).trim();
+        }
       }
       return "";
     };
 
-    // ===== Totals by branch (KM6=Baguio, KML=La Union) =====
+    // === Totals by branch (KM6=Baguio, KML=La Union)
     const totals = {
       KM6: { gross: 0, reject: 0, bo: 0, net: 0 },
       KML: { gross: 0, reject: 0, bo: 0, net: 0 }
     };
 
-    // Gross by branch from "Gross"
     grossRows.forEach(r => {
-      const branch = getText(r, ["Branch Name", "Branch"]).toUpperCase();
-      const val = getVal(r, ["Sum of Order Amount", "GROSS", "TOTAL GROSS", "TOTAL INVOICE"]);
+      const branch = getText(r, ["Branch Name"]).toUpperCase();
+      const val = getVal(r, ["Sum of Order Amount", "GROSS", "TOTAL INVOICE"]);
+      if (branch.includes("KM6") || branch.includes("BAGUIO")) totals.KM6.gross += val;
+      if (branch.includes("KML") || branch.includes("LA UNION")) totals.KML.gross += val;
+    });
+
+    netRows.forEach(r => {
+      const branch = getText(r, ["Branch Name"]).toUpperCase();
+      const reject = getVal(r, ["TOTAL REJECTION", "REJECTION"]);
+      const bo = getVal(r, ["TOTAL BO", "BO", "B.O AMOUNT"]);
+      const net = getVal(r, ["TOTAL NET", "NET", "NET SALES"]);
       if (branch.includes("KM6") || branch.includes("BAGUIO")) {
-        totals.KM6.gross += val;
-      } else if (branch.includes("KML") || branch.includes("LA UNION")) {
-        totals.KML.gross += val;
+        totals.KM6.reject += reject;
+        totals.KM6.bo += bo;
+        totals.KM6.net += net;
+      }
+      if (branch.includes("KML") || branch.includes("LA UNION")) {
+        totals.KML.reject += reject;
+        totals.KML.bo += bo;
+        totals.KML.net += net;
       }
     });
 
-    // Rejection, BO, Net by branch from "P_Net.Inv"
-    netRows.forEach(r => {
-      const branch = getText(r, ["Branch Name", "Branch"]).toUpperCase();
-      const reject = getVal(r, ["REJECTION", "TOTAL REJECTION", "REJ"]);
-      const bo = getVal(r, ["BO", "TOTAL BO", "B.O.", "B.O AMOUNT"]);
-      const net = getVal(r, ["NET", "TOTAL NET", "NET SALES"]);
+    // === FS (field salesperson) totals
+    const fsTotals = {}; // key = FS name uppercase
+    const addFS = (fsName, type, val) => {
+      if (!fsName) return;
+      const key = fsName.toUpperCase().trim();
+      if (!fsTotals[key]) fsTotals[key] = { gross: 0, reject: 0, bo: 0, net: 0 };
+      fsTotals[key][type] += val;
+    };
 
-      if (branch.includes("KM6") || branch.includes("BAGUIO")) {
-        totals.KM6.reject += reject; totals.KM6.bo += bo; totals.KM6.net += net;
-      } else if (branch.includes("KML") || branch.includes("LA UNION")) {
-        totals.KML.reject += reject; totals.KML.bo += bo; totals.KML.net += net;
-      }
-    });
-
-    // ===== FS totals (by Employee Name) =====
-    // We will add Gross + Rejection + BO + Net per employee across both sheets.
-    // Priority: numbers from each sheet; names from "Employee Name".
-    const fsTotals = {}; // key: EMPLOYEE NAME (UPPER)
-
-    // Build gross per employee from "Gross"
     grossRows.forEach(r => {
-      const emp = getText(r, ["Employee Name", "KCM", "Salesman", "Name"]).toUpperCase();
-      if (!emp) return;
-      const gross = getVal(r, ["Sum of Order Amount", "GROSS", "TOTAL GROSS", "TOTAL INVOICE"]);
-      if (!fsTotals[emp]) fsTotals[emp] = { gross: 0, reject: 0, bo: 0, net: 0 };
-      fsTotals[emp].gross += gross;
+      const fs = getText(r, ["fs", "FS", "Employee Name", "Salesman", "Name"]);
+      const gross = getVal(r, ["Sum of Order Amount", "GROSS", "TOTAL INVOICE"]);
+      addFS(fs, "gross", gross);
     });
 
-    // Add rejection/bo/net per employee from "P_Net.Inv"
     netRows.forEach(r => {
-      const emp = getText(r, ["Employee Name", "KCM", "Salesman", "Name"]).toUpperCase();
-      if (!emp) return;
-      const reject = getVal(r, ["REJECTION", "TOTAL REJECTION", "REJ"]);
-      const bo = getVal(r, ["BO", "TOTAL BO", "B.O.", "B.O AMOUNT"]);
-      const net = getVal(r, ["NET", "TOTAL NET", "NET SALES"]);
-      if (!fsTotals[emp]) fsTotals[emp] = { gross: 0, reject: 0, bo: 0, net: 0 };
-      fsTotals[emp].reject += reject; fsTotals[emp].bo += bo; fsTotals[emp].net += net;
+      const fs = getText(r, ["fs", "FS", "Employee Name", "Salesman", "Name"]);
+      const reject = getVal(r, ["TOTAL REJECTION", "REJECTION"]);
+      const bo = getVal(r, ["TOTAL BO", "BO"]);
+      const net = getVal(r, ["TOTAL NET", "NET SALES", "NET"]);
+      addFS(fs, "reject", reject);
+      addFS(fs, "bo", bo);
+      addFS(fs, "net", net);
     });
 
-    // ===== Persist =====
+    // === Save
     localStorage.setItem("dashboardTotals", JSON.stringify(totals));
     localStorage.setItem("fsTotals", JSON.stringify(fsTotals));
 
-    // ===== Feedback =====
-    const fmt = (n) => (isFinite(n) ? Number(n) : 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 3 });
+    // === Feedback
+    const fmt = n => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 3 });
     document.getElementById("result").innerHTML = `
-      <div class="ok">✅ Data saved successfully.</div>
+      <h3>✅ Data Uploaded Successfully</h3>
       <p><strong>KM6 (Baguio)</strong><br>
-        Gross: ${fmt(totals.KM6.gross)}<br>
-        Rejection: ${fmt(totals.KM6.reject)}<br>
-        BO: ${fmt(totals.KM6.bo)}<br>
-        Net: ${fmt(totals.KM6.net)}</p>
+      Gross: ${fmt(totals.KM6.gross)}<br>
+      Rejection: ${fmt(totals.KM6.reject)}<br>
+      BO: ${fmt(totals.KM6.bo)}<br>
+      Net: ${fmt(totals.KM6.net)}</p>
       <p><strong>KML (La Union)</strong><br>
-        Gross: ${fmt(totals.KML.gross)}<br>
-        Rejection: ${fmt(totals.KML.reject)}<br>
-        BO: ${fmt(totals.KML.bo)}<br>
-        Net: ${fmt(totals.KML.net)}</p>
-      <p><em>Click "Go Back to Dashboard" to refresh data.</em></p>
-    `;
+      Gross: ${fmt(totals.KML.gross)}<br>
+      Rejection: ${fmt(totals.KML.reject)}<br>
+      BO: ${fmt(totals.KML.bo)}<br>
+      Net: ${fmt(totals.KML.net)}</p>
+      <p><em>Click "Go Back to Dashboard" to refresh data.</em></p>`;
     document.getElementById("backButton").style.display = "inline-block";
   };
-
   reader.readAsArrayBuffer(file);
 }
 </script>
