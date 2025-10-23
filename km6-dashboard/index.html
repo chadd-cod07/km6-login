@@ -7,69 +7,30 @@
   <link rel="stylesheet" href="style.css" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    /* ===== Dropdown Menu Styling (added) ===== */
-    .menu-container {
-      position: relative;
-      display: inline-block;
-    }
-
-    .menu-icon {
-      cursor: pointer;
-      font-size: 24px;
-      user-select: none;
-    }
-
+    /* ===== Dropdown Menu Styling (kept) ===== */
+    .menu-container { position: relative; display: inline-block; }
+    .menu-icon { cursor: pointer; font-size: 24px; user-select: none; }
     .dropdown-menu {
-      display: none;
-      position: absolute;
-      right: 0;
-      background-color: #ffffff;
-      min-width: 180px;
-      box-shadow: 0 8px 16px rgba(0,0,0,0.2);
-      border-radius: 8px;
-      z-index: 999;
-      overflow: hidden;
-      animation: fadeIn 0.2s ease-in-out;
+      display: none; position: absolute; right: 0; background-color: #ffffff;
+      min-width: 180px; box-shadow: 0 8px 16px rgba(0,0,0,0.2); border-radius: 8px;
+      z-index: 999; overflow: hidden; animation: fadeIn 0.2s ease-in-out;
     }
-
     .dropdown-menu a {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      color: #333;
-      padding: 10px 16px;
-      text-decoration: none;
-      font-size: 15px;
-      transition: background 0.2s;
+      display: flex; align-items: center; gap: 8px; color: #333;
+      padding: 10px 16px; text-decoration: none; font-size: 15px; transition: background 0.2s;
     }
-
-    .dropdown-menu a:hover {
-      background-color: #f0f0f0;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-5px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
+    .dropdown-menu a:hover { background-color: #f0f0f0; }
+    @keyframes fadeIn { from {opacity: 0; transform: translateY(-5px);} to {opacity: 1; transform: translateY(0);} }
 
     /* ✅ Mobile Responsive Tables */
-    .table-container {
-      width: 100%;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      min-width: 600px; /* keep readable on mobile */
-    }
-
-    th, td {
-      text-align: left;
-      padding: 8px;
-      white-space: nowrap;
-    }
+    .table-container { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table { width: 100%; border-collapse: collapse; min-width: 600px; }
+    th, td { text-align: left; padding: 8px; white-space: nowrap; }
+    .negative { color: red; }
+    .up { color: #00843d; font-weight: 700; }
+    .down { color: #c62828; font-weight: 700; }
+    .total td { background: #eef8e9; font-weight: 700; }
+    .summary h2 .date { color: #d32f2f; }
   </style>
 </head>
 <body>
@@ -97,14 +58,14 @@
   <section class="summary">
     <h2>Daily Sales as of <span class="date">Mon Oct 20, 2025</span></h2>
     <div class="info">
-      <p><strong>Selling Days:</strong> 27</p>
-      <p><strong>Actual Days:</strong> 17</p>
-      <p><strong>Progress:</strong> 63%</p>
-      <p><strong>Remaining Days:</strong> 10</p>
+      <p><strong>Selling Days:</strong> <span id="sellingDays">0</span></p>
+      <p><strong>Actual Days:</strong> <span id="actualDays">0</span></p>
+      <p><strong>Progress:</strong> <span id="progressPct">0%</span></p>
+      <p><strong>Remaining Days:</strong> <span id="remainingDays">0</span></p>
     </div>
   </section>
 
-  <!-- Daily Sales Current vs Previous -->
+  <!-- Daily Sales Current vs Previous (kept; values will remain as-is for now) -->
   <section class="compare-section">
     <h2>Daily Sales Current vs Previous</h2>
     <div class="compare-cards">
@@ -114,14 +75,12 @@
         <p><strong>Current Sales:</strong> 2,428,661.17</p>
         <p class="down">▼ 42.18%</p>
       </div>
-
       <div class="card baguio">
         <h3>Total Baguio</h3>
         <p><strong>Previous Sales:</strong> 4,234,112.52</p>
         <p><strong>Current Sales:</strong> 517,089.66</p>
         <p class="down">▼ 78.23%</p>
       </div>
-
       <div class="card launion">
         <h3>Total La Union</h3>
         <p><strong>Previous Sales:</strong> 1,738,131.87</p>
@@ -151,33 +110,21 @@
         <tbody>
           <tr>
             <td>Baguio</td>
-            <td>52,909,574.21</td>
-            <td>873,841.70</td>
+            <td>-</td><td>-</td><td>-</td><td>-</td>
             <td>91,127,709.64</td>
-            <td>50,142,373.46</td>
-            <td>91,127,709.64</td>
-            <td>55.02%</td>
-            <td class="negative">(40,985,336.18)</td>
+            <td>-</td><td>-</td>
           </tr>
           <tr>
             <td>La Union</td>
-            <td>32,505,356.95</td>
-            <td>934,142.37</td>
+            <td>-</td><td>-</td><td>-</td><td>-</td>
             <td>47,136,762.36</td>
-            <td>27,871,778.09</td>
-            <td>47,136,762.36</td>
-            <td>58.94%</td>
-            <td class="negative">(19,354,984.28)</td>
+            <td>-</td><td>-</td>
           </tr>
           <tr class="total">
             <td><strong>Total KM6</strong></td>
-            <td>78,889,403.64</td>
-            <td>1,794,754.29</td>
-            <td>1,950,073.85</td>
-            <td>72,337,056.23</td>
+            <td>-</td><td>-</td><td>1,950,073.85</td><td>-</td>
             <td>138,264,472.00</td>
-            <td>58.94%</td>
-            <td class="negative">(65,927,415.77)</td>
+            <td>-</td><td>-</td>
           </tr>
         </tbody>
       </table>
@@ -193,7 +140,7 @@
           <tr>
             <th>KCM</th>
             <th>Gross</th>
-            <th>Rejection</</th>
+            <th>Rejection</th>
             <th>B.O Amount</th>
             <th>Net Sales</th>
             <th>Target</th>
@@ -204,63 +151,33 @@
         <tbody>
           <tr>
             <td>Jim Russel Peralta</td>
-            <td>12,166,125.19</td>
-            <td>304,916.12</td>
-            <td>129,412.73</td>
-            <td>9,533,727.01</td>
-            <td>15,071,696.63</td>
-            <td>63.26%</td>
-            <td class="negative">(5,537,969.62)</td>
+            <td>-</td><td>-</td><td>-</td><td>-</td>
+            <td>15,071,696.63</td><td>-</td><td>-</td>
           </tr>
           <tr>
             <td>Judy Ann Mabanta</td>
-            <td>3,198,814.16</td>
-            <td>22,488.92</td>
-            <td>60,096.53</td>
-            <td>2,566,038.27</td>
-            <td>4,367,754.61</td>
-            <td>58.75%</td>
-            <td class="negative">(1,801,716.34)</td>
+            <td>-</td><td>-</td><td>-</td><td>-</td>
+            <td>4,367,754.61</td><td>-</td><td>-</td>
           </tr>
           <tr>
             <td>Gilbert Aquino</td>
-            <td>24,414,094.03</td>
-            <td>431,418.50</td>
-            <td>363,410.28</td>
-            <td>18,143,132.97</td>
-            <td>37,611,090.41</td>
-            <td>48.24%</td>
-            <td class="negative">(19,468,776.43)</td>
+            <td>-</td><td>-</td><td>-</td><td>-</td>
+            <td>37,611,090.41</td><td>-</td><td>-</td>
           </tr>
           <tr>
             <td>Roderick Dacay</td>
-            <td>11,393,919.76</td>
-            <td>209,210.16</td>
-            <td>189,307.34</td>
-            <td>9,045,203.89</td>
-            <td>17,302,603.09</td>
-            <td>52.28%</td>
-            <td class="negative">(8,257,400.00)</td>
+            <td>-</td><td>-</td><td>-</td><td>-</td>
+            <td>17,302,603.09</td><td>-</td><td>-</td>
           </tr>
           <tr>
             <td>Gyver Gano</td>
-            <td>1,985,822.40</td>
-            <td>26,725.76</td>
-            <td>249,205.26</td>
-            <td>1,440,620.38</td>
-            <td>3,760,520.90</td>
-            <td>38.31%</td>
-            <td class="negative">(2,319,899.52)</td>
+            <td>-</td><td>-</td><td>-</td><td>-</td>
+            <td>3,760,520.90</td><td>-</td><td>-</td>
           </tr>
           <tr class="total">
             <td><strong>Total KCM</strong></td>
-            <td>53,158,835.54</td>
-            <td>994,759.47</td>
-            <td>997,432.12</td>
-            <td>40,728,792.04</td>
-            <td>78,114,214.71</td>
-            <td>52.14%</td>
-            <td class="negative">(37,385,422.31)</td>
+            <td>-</td><td>-</td><td>-</td><td>-</td>
+            <td>78,114,214.71</td><td>-</td><td>-</td>
           </tr>
         </tbody>
       </table>
@@ -287,33 +204,18 @@
         <tbody>
           <tr>
             <td>Gemma Jacaban</td>
-            <td>1,721,933.53</td>
-            <td>-</td>
-            <td>11,571.57</td>
-            <td>1,721,933.53</td>
-            <td>4,075,946.99</td>
-            <td>42.25%</td>
-            <td class="negative">(2,354,013.46)</td>
+            <td>-</td><td>-</td><td>-</td><td>-</td>
+            <td>4,075,946.99</td><td>-</td><td>-</td>
           </tr>
           <tr>
             <td>Jovelyn Castro</td>
-            <td>13,142,028.61</td>
-            <td>457,939.41</td>
-            <td>199,251.67</td>
-            <td>10,880,155.73</td>
-            <td>20,177,154.31</td>
-            <td>53.93%</td>
-            <td class="negative">(9,297,595.61)</td>
+            <td>-</td><td>-</td><td>-</td><td>-</td>
+            <td>20,177,154.31</td><td>-</td><td>-</td>
           </tr>
           <tr class="total">
             <td><strong>Total LU</strong></td>
-            <td>14,863,962.14</td>
-            <td>457,939.41</td>
-            <td>210,823.24</td>
-            <td>12,602,089.26</td>
-            <td>24,253,698.33</td>
-            <td>51.96%</td>
-            <td class="negative">(11,651,609.07)</td>
+            <td>-</td><td>-</td><td>-</td><td>-</td>
+            <td>24,253,698.33</td><td>-</td><td>-</td>
           </tr>
         </tbody>
       </table>
@@ -340,77 +242,58 @@
         <tbody>
           <tr>
             <td>Jehu Romero</td>
-            <td>4,801,018.19</td>
-            <td>80,198.53</td>
-            <td>312,790.34</td>
-            <td>8,576,562.07</td>
-            <td>14,978,896.84</td>
-            <td>57.26%</td>
-            <td class="negative">(6,401,732.80)</td>
+            <td>-</td><td>-</td><td>-</td><td>-</td>
+            <td>14,978,896.84</td><td>-</td><td>-</td>
           </tr>
           <tr>
             <td>MC ARDEL CACHICHO</td>
-            <td>4,702,779.85</td>
-            <td>80,271.72</td>
-            <td>89,365.24</td>
-            <td>3,707,753.98</td>
-            <td>6,231,106.82</td>
-            <td>59.50%</td>
-            <td class="negative">(2,523,352.28)</td>
+            <td>-</td><td>-</td><td>-</td><td>-</td>
+            <td>6,231,106.82</td><td>-</td><td>-</td>
           </tr>
           <tr>
             <td>Rocky Fowaya</td>
-            <td>1,852,639.53</td>
-            <td>12,592.89</td>
-            <td>315,964.25</td>
-            <td>4,208,042.88</td>
-            <td>14,687,157.84</td>
-            <td>28.65%</td>
-            <td class="negative">(10,479,114.96)</td>
+            <td>-</td><td>-</td><td>-</td><td>-</td>
+            <td>14,687,157.84</td><td>-</td><td>-</td>
           </tr>
           <tr class="total">
             <td><strong>Total Baguio</strong></td>
-            <td>11,356,437.57</td>
-            <td>173,063.14</td>
-            <td>718,320.62</td>
-            <td>16,492,358.93</td>
-            <td>35,896,558.97</td>
-            <td>45.94%</td>
-            <td class="negative">(19,404,200.04)</td>
+            <td>-</td><td>-</td><td>-</td><td>-</td>
+            <td>35,896,558.97</td><td>-</td><td>-</td>
           </tr>
         </tbody>
       </table>
     </div>
   </section>
-      <!-- ===== Dropdown + Dashboard Update Script ===== -->
+
+  <!-- ===== Dropdown + Dashboard Update Script ===== -->
   <script>
-    // ==== Dropdown Menu ====
+    // ---------- Helpers ----------
+    const fmt = (n) =>
+      (isFinite(n) ? Number(n) : 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 3 });
+
+    const num = (txt) => parseFloat(String(txt || "").replace(/,/g, "")) || 0;
+
+    function setCellText(cell, value) {
+      if (!cell) return;
+      cell.textContent = fmt(value);
+    }
+
+    // ---------- Dropdown ----------
     const menuIcon = document.querySelector(".menu-icon");
     const dropdownMenu = document.getElementById("dropdownMenu");
-
     menuIcon.addEventListener("click", () => {
-      dropdownMenu.style.display =
-        dropdownMenu.style.display === "block" ? "none" : "block";
+      dropdownMenu.style.display = dropdownMenu.style.display === "block" ? "none" : "block";
     });
-
     window.addEventListener("click", (e) => {
-      if (!e.target.closest(".menu-container")) {
-        dropdownMenu.style.display = "none";
-      }
+      if (!e.target.closest(".menu-container")) dropdownMenu.style.display = "none";
     });
 
-    // ==== Nav Links ====
-    document.getElementById("totalSalesLink").addEventListener("click", () => {
-      alert("Total Sales page coming soon!");
-    });
-    document.getElementById("dspSalesLink").addEventListener("click", () => {
-      alert("DSP-Sales page coming soon!");
-    });
-    document.getElementById("focus30Link").addEventListener("click", () => {
-      alert("Focus 30 page coming soon!");
-    });
+    // ---------- Nav placeholders ----------
+    document.getElementById("totalSalesLink").addEventListener("click", () => alert("Total Sales page coming soon!"));
+    document.getElementById("dspSalesLink").addEventListener("click", () => alert("DSP-Sales page coming soon!"));
+    document.getElementById("focus30Link").addEventListener("click", () => alert("Focus 30 page coming soon!"));
 
-    // ==== Logout Redirect ====
+    // ---------- Logout Redirect ----------
     const logoutLink = document.querySelector('.dropdown-menu a[href="logout.html"]');
     if (logoutLink) {
       logoutLink.addEventListener("click", function (event) {
@@ -419,151 +302,143 @@
       });
     }
 
-    // ==== Branch Summary Auto Update ====
-    window.addEventListener("load", () => {
-      const saved = localStorage.getItem("dashboardTotals");
-      if (!saved) return;
+    // ---------- Date & Day KPIs ----------
+    function updateDayKPIs() {
+      const now = new Date();
+      const dateStr = now.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+      document.querySelector(".summary .date").textContent = dateStr;
 
-      const totals = JSON.parse(saved);
-      const rows = document.querySelectorAll(".table-section table tbody tr");
+      const sellingDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(); // days in month
+      const actualDays = now.getDate();
+      const progress = Math.round((actualDays / sellingDays) * 100);
+      const remaining = Math.max(0, sellingDays - actualDays);
 
-      rows.forEach((row) => {
+      document.getElementById("sellingDays").textContent = sellingDays;
+      document.getElementById("actualDays").textContent = actualDays;
+      document.getElementById("progressPct").textContent = `${progress}%`;
+      document.getElementById("remainingDays").textContent = remaining;
+    }
+
+    // ---------- Dashboard Auto Update ----------
+    window.addEventListener("DOMContentLoaded", () => {
+      updateDayKPIs();
+
+      const totals = JSON.parse(localStorage.getItem("dashboardTotals") || "{}");
+      const fsTotals = JSON.parse(localStorage.getItem("fsTotals") || "{}"); // keyed by EMPLOYEE NAME (UPPER)
+
+      // --- Update Branch Summary ---
+      const branchRows = document.querySelectorAll("section.table-section table tbody tr");
+      let km6Net = 0, kmlNet = 0;
+
+      branchRows.forEach(row => {
         const branch = row.cells[0]?.innerText.trim().toUpperCase();
         if (!branch) return;
 
-        // === KM6 / Baguio ===
+        // Target and optional BO are already in HTML
+        const target = num(row.cells[5]?.innerText);
+
         if (branch.includes("BAGUIO") || branch.includes("KM6")) {
-          row.cells[1].innerText = totals.KM6.gross.toLocaleString();
-          row.cells[2].innerText = totals.KM6.reject.toLocaleString();
-          row.cells[3].innerText = totals.KM6.bo.toLocaleString();
-          row.cells[4].innerText = totals.KM6.net.toLocaleString();
+          if (totals?.KM6) {
+            setCellText(row.cells[1], totals.KM6.gross);
+            setCellText(row.cells[2], totals.KM6.reject);
+            setCellText(row.cells[3], totals.KM6.bo);
+            setCellText(row.cells[4], totals.KM6.net);
+            km6Net = totals.KM6.net;
 
-          const target = parseFloat(row.cells[5].innerText.replace(/,/g, "")) || 0;
-          const balance = totals.KM6.net - target;
-          row.cells[7].innerText =
-            (balance < 0 ? "(" : "") +
-            Math.abs(balance).toLocaleString(undefined, { minimumFractionDigits: 2 }) +
-            (balance < 0 ? ")" : "");
-          row.cells[7].style.color = balance < 0 ? "red" : "green";
-        }
-
-        // === KML / La Union ===
-        if (branch.includes("LA UNION") || branch.includes("KML")) {
-          row.cells[1].innerText = totals.KML.gross.toLocaleString();
-          row.cells[2].innerText = totals.KML.reject.toLocaleString();
-          row.cells[3].innerText = totals.KML.bo.toLocaleString();
-          row.cells[4].innerText = totals.KML.net.toLocaleString();
-
-          const target = parseFloat(row.cells[5].innerText.replace(/,/g, "")) || 0;
-          const balance = totals.KML.net - target;
-          row.cells[7].innerText =
-            (balance < 0 ? "(" : "") +
-            Math.abs(balance).toLocaleString(undefined, { minimumFractionDigits: 2 }) +
-            (balance < 0 ? ")" : "");
-          row.cells[7].style.color = balance < 0 ? "red" : "green";
-        }
-      });
-    });
-
-    // ==== FS Auto Update ====
-    window.addEventListener("load", () => {
-      const savedFS = localStorage.getItem("fsTotals");
-      if (!savedFS) return;
-
-      const fsTotals = JSON.parse(savedFS);
-      const allRows = document.querySelectorAll("section.table-group table tbody tr");
-
-      allRows.forEach((row) => {
-        const nameCell = row.cells[0];
-        if (!nameCell) return;
-
-        const fsName = nameCell.innerText.trim().toUpperCase();
-
-        // Skip totals and blank rows
-        if (fsName.startsWith("TOTAL") || fsName === "" || fsName === "-") return;
-
-        if (fsTotals[fsName]) {
-          const fs = fsTotals[fsName];
-
-          if (row.cells[2]) row.cells[2].innerText = fs.reject.toLocaleString();
-          if (row.cells[3]) row.cells[3].innerText = fs.bo.toLocaleString();
-          if (row.cells[4]) row.cells[4].innerText = fs.net.toLocaleString();
-
-          const target = parseFloat(row.cells[5]?.innerText.replace(/,/g, "")) || 0;
-          const balance = fs.net - target;
-          if (row.cells[7]) {
-            row.cells[7].innerText =
-              (balance < 0 ? "(" : "") +
-              Math.abs(balance).toLocaleString(undefined, { minimumFractionDigits: 2 }) +
-              (balance < 0 ? ")" : "");
+            const pct = target ? (totals.KM6.net / target) * 100 : 0;
+            row.cells[6].textContent = `${pct.toFixed(2)}%`;
+            const balance = totals.KM6.net - target;
+            row.cells[7].textContent = (balance < 0 ? "(" : "") + fmt(Math.abs(balance)) + (balance < 0 ? ")" : "");
             row.cells[7].style.color = balance < 0 ? "red" : "green";
           }
+        } else if (branch.includes("LA UNION") || branch.includes("KML")) {
+          if (totals?.KML) {
+            setCellText(row.cells[1], totals.KML.gross);
+            setCellText(row.cells[2], totals.KML.reject);
+            setCellText(row.cells[3], totals.KML.bo);
+            setCellText(row.cells[4], totals.KML.net);
+            kmlNet = totals.KML.net;
+
+            const pct = target ? (totals.KML.net / target) * 100 : 0;
+            row.cells[6].textContent = `${pct.toFixed(2)}%`;
+            const balance = totals.KML.net - target;
+            row.cells[7].textContent = (balance < 0 ? "(" : "") + fmt(Math.abs(balance)) + (balance < 0 ? ")" : "");
+            row.cells[7].style.color = balance < 0 ? "red" : "green";
+          }
+        } else if (branch.includes("TOTAL")) {
+          // Sum up KM6 + KML for Total KM6
+          const totalNet = km6Net + kmlNet;
+          setCellText(row.cells[4], totalNet);
+
+          const targetTotal = num(row.cells[5]?.innerText);
+          const pct = targetTotal ? (totalNet / targetTotal) * 100 : 0;
+          row.cells[6].textContent = `${pct.toFixed(2)}%`;
+
+          const balance = totalNet - targetTotal;
+          row.cells[7].textContent = (balance < 0 ? "(" : "") + fmt(Math.abs(balance)) + (balance < 0 ? ")" : "");
+          row.cells[7].style.color = balance < 0 ? "red" : "green";
         }
       });
 
-      // === Auto-calc TOTAL rows (sum of FS under same section)
+      // --- Update FS sections (KCM, LU, Baguio) ---
       const groups = document.querySelectorAll("section.table-group");
-      groups.forEach((group) => {
-        const fsRows = group.querySelectorAll("tbody tr:not(.total)");
-        const totalRow = group.querySelector("tbody tr.total");
-        if (!fsRows.length || !totalRow) return;
+      groups.forEach(group => {
+        const rows = group.querySelectorAll("tbody tr");
+        let sumGross = 0, sumRej = 0, sumBO = 0, sumNet = 0;
+        let totalRow = null;
 
-        let totalReject = 0, totalBO = 0, totalNet = 0;
+        rows.forEach(row => {
+          const nameCell = row.cells[0];
+          if (!nameCell) return;
 
-        fsRows.forEach((r) => {
-          totalReject += parseFloat(r.cells[2]?.innerText.replace(/,/g, "")) || 0;
-          totalBO += parseFloat(r.cells[3]?.innerText.replace(/,/g, "")) || 0;
-          totalNet += parseFloat(r.cells[4]?.innerText.replace(/,/g, "")) || 0;
+          const label = nameCell.innerText.trim().toUpperCase();
+
+          if (label.startsWith("TOTAL")) {
+            totalRow = row;
+            return;
+          }
+
+          // pull FS values if available
+          const fs = fsTotals[label];
+          if (fs) {
+            setCellText(row.cells[1], fs.gross);
+            setCellText(row.cells[2], fs.reject);
+            setCellText(row.cells[3], fs.bo);
+            setCellText(row.cells[4], fs.net);
+
+            const target = num(row.cells[5]?.innerText);
+            const pct = target ? (fs.net / target) * 100 : 0;
+            row.cells[6].textContent = `${pct.toFixed(2)}%`;
+
+            const balance = fs.net - target;
+            row.cells[7].textContent = (balance < 0 ? "(" : "") + fmt(Math.abs(balance)) + (balance < 0 ? ")" : "");
+            row.cells[7].style.color = balance < 0 ? "red" : "green";
+
+            sumGross += fs.gross || 0;
+            sumRej  += fs.reject || 0;
+            sumBO   += fs.bo || 0;
+            sumNet  += fs.net || 0;
+          } else {
+            // If no data for the FS, keep dashes
+          }
         });
 
-        totalRow.cells[2].innerText = totalReject.toLocaleString();
-        totalRow.cells[3].innerText = totalBO.toLocaleString();
-        totalRow.cells[4].innerText = totalNet.toLocaleString();
+        if (totalRow) {
+          setCellText(totalRow.cells[1], sumGross);
+          setCellText(totalRow.cells[2], sumRej);
+          setCellText(totalRow.cells[3], sumBO);
+          setCellText(totalRow.cells[4], sumNet);
 
-        const target = parseFloat(totalRow.cells[5]?.innerText.replace(/,/g, "")) || 0;
-        const balance = totalNet - target;
-        totalRow.cells[7].innerText =
-          (balance < 0 ? "(" : "") +
-          Math.abs(balance).toLocaleString(undefined, { minimumFractionDigits: 2 }) +
-          (balance < 0 ? ")" : "");
-        totalRow.cells[7].style.color = balance < 0 ? "red" : "green";
+          const target = num(totalRow.cells[5]?.innerText);
+          const pct = target ? (sumNet / target) * 100 : 0;
+          totalRow.cells[6].textContent = `${pct.toFixed(2)}%`;
+
+          const balance = sumNet - target;
+          totalRow.cells[7].textContent = (balance < 0 ? "(" : "") + fmt(Math.abs(balance)) + (balance < 0 ? ")" : "");
+          totalRow.cells[7].style.color = balance < 0 ? "red" : "green";
+        }
       });
     });
   </script>
-  <script>
-// === Dashboard Auto Update ===
-window.addEventListener("DOMContentLoaded", () => {
-  const totals = JSON.parse(localStorage.getItem("dashboardTotals") || "{}");
-  const fsTotals = JSON.parse(localStorage.getItem("fsTotals") || "{}");
-
-  // --- Update Branch Summary ---
-  const rows = document.querySelectorAll("section.table-section table tbody tr");
-  rows.forEach(row => {
-    const branch = row.cells[0]?.innerText.trim().toUpperCase();
-    if (!branch) return;
-
-    if (branch.includes("BAGUIO") || branch.includes("KM6")) {
-      row.cells[1].innerText = totals.KM6.gross?.toLocaleString() || "0";
-      row.cells[2].innerText = totals.KM6.reject?.toLocaleString() || "0";
-      row.cells[3].innerText = totals.KM6.bo?.toLocaleString() || "0";
-      row.cells[4].innerText = totals.KM6.net?.toLocaleString() || "0";
-    } else if (branch.includes("LA UNION") || branch.includes("KML")) {
-      row.cells[1].innerText = totals.KML.gross?.toLocaleString() || "0";
-      row.cells[2].innerText = totals.KML.reject?.toLocaleString() || "0";
-      row.cells[3].innerText = totals.KML.bo?.toLocaleString() || "0";
-      row.cells[4].innerText = totals.KML.net?.toLocaleString() || "0";
-    }
-  });
-
-  // --- Update FS Gross (KCM, LU, Baguio sections) ---
-  const fsRows = document.querySelectorAll("section.table-group table tbody tr");
-  fsRows.forEach(row => {
-    const name = row.cells[0]?.innerText.trim().toUpperCase();
-    if (fsTotals[name]) {
-      row.cells[1].innerText = fsTotals[name].gross.toLocaleString();
-    }
-  });
-});
-</script>
 </body>
 </html>

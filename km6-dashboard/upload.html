@@ -7,50 +7,18 @@
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #f6f8fa;
-      text-align: center;
-      padding: 50px;
-    }
-
-    h2 {
-      color: #00843d;
-    }
-
+    body { font-family: Arial, sans-serif; background-color: #f6f8fa; text-align: center; padding: 50px; }
+    h2 { color: #00843d; }
     input[type="file"] {
-      padding: 10px;
-      border: 2px dashed #00843d;
-      border-radius: 10px;
-      background: #fff;
-      cursor: pointer;
-      margin-top: 20px;
+      padding: 10px; border: 2px dashed #00843d; border-radius: 10px; background: #fff; cursor: pointer; margin-top: 20px;
     }
-
     .result {
-      margin-top: 30px;
-      background: #fff;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-      display: inline-block;
-      text-align: left;
-      width: 320px;
+      margin-top: 30px; background: #fff; padding: 20px; border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: inline-block; text-align: left; width: 360px;
     }
-
-    button {
-      background-color: #00843d;
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 5px;
-      cursor: pointer;
-      margin-top: 20px;
-    }
-
-    button:hover {
-      background-color: #006f32;
-    }
+    button { background-color: #00843d; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-top: 20px; }
+    button:hover { background-color: #006f32; }
+    .ok { color: #00843d; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -62,11 +30,12 @@
   <div class="result" id="result"></div>
 
   <button id="backButton" style="display:none;">Go Back to Dashboard</button>
+
 <script>
 document.getElementById('fileInput').addEventListener('change', handleFile, false);
 
 document.getElementById('backButton').addEventListener('click', () => {
-  // ✅ Redirect depending on environment
+  // Redirect depending on environment
   if (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost") {
     window.location.href = "index.html"; // Local (VS Code Live Server)
   } else {
@@ -83,92 +52,113 @@ function handleFile(event) {
     const data = new Uint8Array(e.target.result);
     const workbook = XLSX.read(data, { type: 'array' });
 
-    // ✅ Try reading both sheets
+    // Try reading needed sheets
     const sheetGross = workbook.Sheets["Gross"];
     const sheetNet = workbook.Sheets["P_Net.Inv"];
 
-    if (!sheetNet) {
-      alert("⚠️ Missing sheet: 'P_Net.Inv'");
-      return;
-    }
-    if (!sheetGross) {
-      alert("⚠️ Missing sheet: 'Gross'");
-      return;
-    }
+    if (!sheetNet) { alert("⚠️ Missing sheet: 'P_Net.Inv'"); return; }
+    if (!sheetGross) { alert("⚠️ Missing sheet: 'Gross'"); return; }
 
-    // === Convert both sheets to JSON ===
+    // To JSON
     const grossRows = XLSX.utils.sheet_to_json(sheetGross);
     const netRows = XLSX.utils.sheet_to_json(sheetNet);
 
-    // === Helper for flexible matching ===
+    // Helper: flexible field access + numeric parsing
     const getVal = (row, names) => {
-      const lower = Object.keys(row).reduce((acc, k) => {
-        acc[k.toLowerCase().trim()] = row[k];
-        return acc;
-      }, {});
+      const lower = Object.keys(row).reduce((acc, k) => { acc[String(k).toLowerCase().trim()] = row[k]; return acc; }, {});
       for (let name of names) {
-        const key = name.toLowerCase().trim();
-        if (lower[key] !== undefined && lower[key] !== "")
-          return parseFloat(String(lower[key]).replace(/,/g, "")) || 0;
+        const key = String(name).toLowerCase().trim();
+        if (lower[key] !== undefined && lower[key] !== "") {
+          const raw = String(lower[key]).toString().replace(/,/g, "");
+          const v = parseFloat(raw);
+          if (!isNaN(v)) return v;
+        }
       }
       return 0;
     };
+    const getText = (row, names) => {
+      const lower = Object.keys(row).reduce((acc, k) => { acc[String(k).toLowerCase().trim()] = row[k]; return acc; }, {});
+      for (let name of names) {
+        const key = String(name).toLowerCase().trim();
+        if (lower[key] !== undefined && lower[key] !== null) return String(lower[key]).trim();
+      }
+      return "";
+    };
 
-    // === Initialize totals ===
-    let totals = {
+    // ===== Totals by branch (KM6=Baguio, KML=La Union) =====
+    const totals = {
       KM6: { gross: 0, reject: 0, bo: 0, net: 0 },
       KML: { gross: 0, reject: 0, bo: 0, net: 0 }
     };
 
-    // ✅ Get Gross totals from “Gross” sheet
+    // Gross by branch from "Gross"
     grossRows.forEach(r => {
-      const branch = String(r["Branch Name"] || "").toUpperCase();
+      const branch = getText(r, ["Branch Name", "Branch"]).toUpperCase();
       const val = getVal(r, ["Sum of Order Amount", "GROSS", "TOTAL GROSS", "TOTAL INVOICE"]);
-
-      if (branch.includes("BAGUIO") || branch.includes("KM6")) {
+      if (branch.includes("KM6") || branch.includes("BAGUIO")) {
         totals.KM6.gross += val;
-      } else if (branch.includes("LA UNION") || branch.includes("KML")) {
+      } else if (branch.includes("KML") || branch.includes("LA UNION")) {
         totals.KML.gross += val;
       }
     });
 
-    // ✅ Get Rejection, BO, Net from “P_Net.Inv” sheet
+    // Rejection, BO, Net by branch from "P_Net.Inv"
     netRows.forEach(r => {
-      const branch = String(r["Branch Name"] || "").toUpperCase();
+      const branch = getText(r, ["Branch Name", "Branch"]).toUpperCase();
       const reject = getVal(r, ["REJECTION", "TOTAL REJECTION", "REJ"]);
       const bo = getVal(r, ["BO", "TOTAL BO", "B.O.", "B.O AMOUNT"]);
       const net = getVal(r, ["NET", "TOTAL NET", "NET SALES"]);
 
-      if (branch.includes("BAGUIO") || branch.includes("KM6")) {
-        totals.KM6.reject += reject;
-        totals.KM6.bo += bo;
-        totals.KM6.net += net;
-      } else if (branch.includes("LA UNION") || branch.includes("KML")) {
-        totals.KML.reject += reject;
-        totals.KML.bo += bo;
-        totals.KML.net += net;
+      if (branch.includes("KM6") || branch.includes("BAGUIO")) {
+        totals.KM6.reject += reject; totals.KM6.bo += bo; totals.KM6.net += net;
+      } else if (branch.includes("KML") || branch.includes("LA UNION")) {
+        totals.KML.reject += reject; totals.KML.bo += bo; totals.KML.net += net;
       }
     });
 
-    // ✅ Save data
+    // ===== FS totals (by Employee Name) =====
+    // We will add Gross + Rejection + BO + Net per employee across both sheets.
+    // Priority: numbers from each sheet; names from "Employee Name".
+    const fsTotals = {}; // key: EMPLOYEE NAME (UPPER)
+
+    // Build gross per employee from "Gross"
+    grossRows.forEach(r => {
+      const emp = getText(r, ["Employee Name", "KCM", "Salesman", "Name"]).toUpperCase();
+      if (!emp) return;
+      const gross = getVal(r, ["Sum of Order Amount", "GROSS", "TOTAL GROSS", "TOTAL INVOICE"]);
+      if (!fsTotals[emp]) fsTotals[emp] = { gross: 0, reject: 0, bo: 0, net: 0 };
+      fsTotals[emp].gross += gross;
+    });
+
+    // Add rejection/bo/net per employee from "P_Net.Inv"
+    netRows.forEach(r => {
+      const emp = getText(r, ["Employee Name", "KCM", "Salesman", "Name"]).toUpperCase();
+      if (!emp) return;
+      const reject = getVal(r, ["REJECTION", "TOTAL REJECTION", "REJ"]);
+      const bo = getVal(r, ["BO", "TOTAL BO", "B.O.", "B.O AMOUNT"]);
+      const net = getVal(r, ["NET", "TOTAL NET", "NET SALES"]);
+      if (!fsTotals[emp]) fsTotals[emp] = { gross: 0, reject: 0, bo: 0, net: 0 };
+      fsTotals[emp].reject += reject; fsTotals[emp].bo += bo; fsTotals[emp].net += net;
+    });
+
+    // ===== Persist =====
     localStorage.setItem("dashboardTotals", JSON.stringify(totals));
+    localStorage.setItem("fsTotals", JSON.stringify(fsTotals));
 
-    // ✅ Display results
+    // ===== Feedback =====
+    const fmt = (n) => (isFinite(n) ? Number(n) : 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 3 });
     document.getElementById("result").innerHTML = `
-      <h3>✅ Data Uploaded Successfully</h3>
-
+      <div class="ok">✅ Data saved successfully.</div>
       <p><strong>KM6 (Baguio)</strong><br>
-        Gross: ${totals.KM6.gross.toLocaleString()}<br>
-        Rejection: ${totals.KM6.reject.toLocaleString()}<br>
-        BO: ${totals.KM6.bo.toLocaleString()}<br>
-        Net: ${totals.KM6.net.toLocaleString()}</p>
-
+        Gross: ${fmt(totals.KM6.gross)}<br>
+        Rejection: ${fmt(totals.KM6.reject)}<br>
+        BO: ${fmt(totals.KM6.bo)}<br>
+        Net: ${fmt(totals.KM6.net)}</p>
       <p><strong>KML (La Union)</strong><br>
-        Gross: ${totals.KML.gross.toLocaleString()}<br>
-        Rejection: ${totals.KML.reject.toLocaleString()}<br>
-        BO: ${totals.KML.bo.toLocaleString()}<br>
-        Net: ${totals.KML.net.toLocaleString()}</p>
-
+        Gross: ${fmt(totals.KML.gross)}<br>
+        Rejection: ${fmt(totals.KML.reject)}<br>
+        BO: ${fmt(totals.KML.bo)}<br>
+        Net: ${fmt(totals.KML.net)}</p>
       <p><em>Click "Go Back to Dashboard" to refresh data.</em></p>
     `;
     document.getElementById("backButton").style.display = "inline-block";
