@@ -92,7 +92,6 @@
 <p class="updated-time" id="lastUpdated" style="font-size:.9em;color:#555;margin-top:6px;">
   Last updated: --
 </p>
-
   <!-- Branch Table -->
   <section class="table-section">
     <h2>Branch Summary</h2>
@@ -111,26 +110,26 @@
           </tr>
         </thead>
         <tbody>
-<tr>
-  <td>Baguio</td>
-  <td id="km6Gross">-</td>
-  <td id="km6Reject">-</td>
-  <td id="km6BO">-</td>
-  <td id="km6Net">-</td>
-  <td>91,127,709.64</td>
-  <td>-</td>
-  <td>-</td>
-</tr>
-<tr>
-  <td>La Union</td>
-  <td id="kmlGross">-</td>
-  <td id="kmlReject">-</td>
-  <td id="kmlBO">-</td>
-  <td id="kmlNet">-</td>
-  <td>47,136,762.36</td>
-  <td>-</td>
-  <td>-</td>
-</tr>
+          <tr>
+            <td>Baguio</td>
+            <td id="km6Gross">-</td>
+            <td id="km6Reject">-</td>
+            <td id="km6BO">-</td>
+            <td id="km6Net">-</td>
+            <td>91,127,709.64</td>
+            <td>-</td>
+            <td>-</td>
+          </tr>
+          <tr>
+            <td>La Union</td>
+            <td id="kmlGross">-</td>
+            <td id="kmlReject">-</td>
+            <td id="kmlBO">-</td>
+            <td id="kmlNet">-</td>
+            <td>47,136,762.36</td>
+            <td>-</td>
+            <td>-</td>
+          </tr>
           <tr class="total">
             <td><strong>Total KM6</strong></td>
             <td>-</td><td>-</td><td>1,950,073.85</td><td>-</td>
@@ -141,7 +140,6 @@
       </table>
     </div>
   </section>
-
   <!-- KCM Table -->
   <section class="table-group">
     <h2>Total KCM</h2>
@@ -574,16 +572,38 @@ window.addEventListener("load", () => {
 
   // Example dashboard update (customize this for your layout)
   function updateDashboard(totals, fsTotals) {
-    const fmt = n => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 3 });
-    document.getElementById("km6Gross").textContent = fmt(totals.KM6.gross);
-    document.getElementById("km6Reject").textContent = fmt(totals.KM6.reject);
-    document.getElementById("km6BO").textContent = fmt(totals.KM6.bo);
-    document.getElementById("km6Net").textContent = fmt(totals.KM6.net);
-    document.getElementById("kmlGross").textContent = fmt(totals.KML.gross);
-    document.getElementById("kmlReject").textContent = fmt(totals.KML.reject);
-    document.getElementById("kmlBO").textContent = fmt(totals.KML.bo);
-    document.getElementById("kmlNet").textContent = fmt(totals.KML.net);
+  const fmt = n => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 3 });
+
+  // Helper to safely set text
+  const setText = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = fmt(value);
+    else console.warn("⚠️ Missing element ID:", id);
+  };
+
+  // Update Baguio (KM6)
+  if (totals?.KM6) {
+    setText("km6Gross", totals.KM6.gross);
+    setText("km6Reject", totals.KM6.reject);
+    setText("km6BO", totals.KM6.bo);
+    setText("km6Net", totals.KM6.net);
   }
+
+  // Update La Union (KML)
+  if (totals?.KML) {
+    setText("kmlGross", totals.KML.gross);
+    setText("kmlReject", totals.KML.reject);
+    setText("kmlBO", totals.KML.bo);
+    setText("kmlNet", totals.KML.net);
+  }
+
+  // Show timestamp if available
+  const lastUpdated = document.getElementById("lastUpdated");
+  if (lastUpdated) {
+    const now = new Date().toLocaleString();
+    lastUpdated.textContent = "Last updated: " + now;
+  }
+}
 
   // Run on page load
   loadDashboardData();
