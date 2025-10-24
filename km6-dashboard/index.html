@@ -89,6 +89,9 @@
       </div>
     </div>
   </section>
+<p class="updated-time" id="lastUpdated" style="font-size:.9em;color:#555;margin-top:6px;">
+  Last updated: --
+</p>
 
   <!-- Branch Table -->
   <section class="table-section">
@@ -108,18 +111,26 @@
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td>Baguio</td>
-            <td>-</td><td>-</td><td>-</td><td>-</td>
-            <td>91,127,709.64</td>
-            <td>-</td><td>-</td>
-          </tr>
-          <tr>
-            <td>La Union</td>
-            <td>-</td><td>-</td><td>-</td><td>-</td>
-            <td>47,136,762.36</td>
-            <td>-</td><td>-</td>
-          </tr>
+<tr>
+  <td>Baguio</td>
+  <td id="km6Gross">-</td>
+  <td id="km6Reject">-</td>
+  <td id="km6BO">-</td>
+  <td id="km6Net">-</td>
+  <td>91,127,709.64</td>
+  <td>-</td>
+  <td>-</td>
+</tr>
+<tr>
+  <td>La Union</td>
+  <td id="kmlGross">-</td>
+  <td id="kmlReject">-</td>
+  <td id="kmlBO">-</td>
+  <td id="kmlNet">-</td>
+  <td>47,136,762.36</td>
+  <td>-</td>
+  <td>-</td>
+</tr>
           <tr class="total">
             <td><strong>Total KM6</strong></td>
             <td>-</td><td>-</td><td>1,950,073.85</td><td>-</td>
@@ -577,6 +588,150 @@ window.addEventListener("load", () => {
   // Run on page load
   loadDashboardData();
 </script>
+<!-- Firebase live sync (append at very end) -->
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore-compat.js"></script>
+<script>
+  // === Firebase init (same project as upload.html) ===
+  const firebaseConfig = {
+    apiKey: "AIzaSyCStpCWdRO770N4SpH3GKYwp9pg1kP6_O4",
+    authDomain: "km6-dashboard.firebaseapp.com",
+    projectId: "km6-dashboard",
+    storageBucket: "km6-dashboard.appspot.com",   // ✅ appspot.com (not firebasestorage.app)
+    messagingSenderId: "309068846407",
+    appId: "1:309068846407:web:68d51a21f6ab238fa1a862"
+  };
+  if (firebase.apps.length === 0) firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
 
+  // Helpers
+  const fmt = (n) => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const num = (txt) => parseFloat(String(txt || "").replace(/,/g, "")) || 0;
+  const safeSet = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = fmt(value); };
+
+  // === 2.1 Totals live listener ===
+  db.collection("km6_dashboard_data").doc("dashboardTotals").onSnapshot((snap) => {
+    if (!snap.exists) { console.warn("No dashboardTotals in Firebase yet."); return; }
+    const totals = snap.data();
+    console.log("✅ Totals (live):", totals);
+
+    // Paint branch summary cells
+    safeSet("km6Gross", totals.KM6?.gross);
+    safeSet("km6Reject", totals.KM6?.reject);
+    safeSet("km6BO",    totals.KM6?.bo);
+    safeSet("km6Net",   totals.KM6?.net);
+
+    safeSet("kmlGross", totals.KML?.gross);
+    safeSet("kmlReject",totals.KML?.reject);
+    safeSet("kmlBO",    totals.KML?.bo);
+    safeSet("kmlNet",   totals.KML?.net);
+
+    // Save for your existing offline logic
+    localStorage.setItem("dashboardTotals", JSON.stringify(totals));
+
+    // Recompute % and Balance using your existing targets in the table
+    const rows = document.querySelectorAll("section.table-section table tbody tr");
+    let km6Net=0, kmlNet=0;
+    rows.forEach(row => {
+      const label = row.cells[0]?.innerText.trim().toUpperCase();
+      if (!label) return;
+
+      if (label.includes("BAGUIO") || label.includes("KM6")) {
+        const target = num(row.cells[5]?.innerText);
+        const net = totals.KM6?.net || 0;
+        km6Net = net;
+        row.cells[6].textContent = target ? (net/target*100).toFixed(2)+"%" : "-";
+        const bal = net - target;
+        row.cells[7].textContent = (bal<0?"(":"") + fmt(Math.abs(bal)) + (bal<0?")":"");
+        row.cells[7].style.color = bal<0 ? "red" : "green";
+      }
+      if (label.includes("LA UNION") || label.includes("KML")) {
+        const target = num(row.cells[5]?.innerText);
+        const net = totals.KML?.net || 0;
+        kmlNet = net;
+        row.cells[6].textContent = target ? (net/target*100).toFixed(2)+"%" : "-";
+        const bal = net - target;
+        row.cells[7].textContent = (bal<0?"(":"") + fmt(Math.abs(bal)) + (bal<0?")":"");
+        row.cells[7].style.color = bal<0 ? "red" : "green";
+      }
+      if (label.includes("TOTAL KM6")) {
+        const netTotal = km6Net + kmlNet;
+        // Paint the Net cell in your "Total KM6" row (col 5, zero-based index 4)
+        if (row.cells[4]) row.cells[4].textContent = fmt(netTotal);
+        const target = num(row.cells[5]?.innerText);
+        row.cells[6].textContent = target ? (netTotal/target*100).toFixed(2)+"%" : "-";
+        const bal = netTotal - target;
+        row.cells[7].textContent = (bal<0?"(":"") + fmt(Math.abs(bal)) + (bal<0?")":"");
+        row.cells[7].style.color = bal<0 ? "red" : "green";
+      }
+    });
+
+    // Update timestamp
+    const ts = new Date().toLocaleString();
+    const stamp = document.getElementById("lastUpdated");
+    if (stamp) stamp.textContent = "Last updated: " + ts;
+  });
+
+  // === 2.2 FS totals live listener (updates rows under KCM/LU/Baguio groups) ===
+  db.collection("km6_dashboard_data").doc("fsTotals").onSnapshot((snap) => {
+    if (!snap.exists) { console.warn("No fsTotals in Firebase yet."); return; }
+    const fsTotals = snap.data();
+    console.log("✅ FS (live):", fsTotals);
+    localStorage.setItem("fsTotals", JSON.stringify(fsTotals));
+
+    // Walk all rows in every .table-group (your three FS sections)
+    document.querySelectorAll("section.table-group tbody tr").forEach(row => {
+      const label = row.cells[0]?.innerText.trim().toUpperCase();
+      if (!label || label.startsWith("TOTAL")) return;
+      const fs = fsTotals[label];
+      if (!fs) return;
+
+      // Paint detail row
+      if (row.cells[1]) row.cells[1].textContent = fmt(fs.gross);
+      if (row.cells[2]) row.cells[2].textContent = fmt(fs.reject);
+      if (row.cells[3]) row.cells[3].textContent = fmt(fs.bo);
+      if (row.cells[4]) row.cells[4].textContent = fmt(fs.net);
+
+      // Target, %, Balance (if you have targets in col 6)
+      const target = row.cells[5] ? num(row.cells[5].innerText) : 0;
+      if (row.cells[6]) row.cells[6].textContent = target ? (fs.net/target*100).toFixed(2)+"%" : "-";
+      if (row.cells[7]) {
+        const bal = fs.net - target;
+        row.cells[7].textContent = (bal<0?"(":"") + fmt(Math.abs(bal)) + (bal<0?")":"");
+        row.cells[7].style.color = bal<0 ? "red" : "green";
+      }
+    });
+
+    // Recompute each group's TOTAL row
+    document.querySelectorAll("section.table-group").forEach(group => {
+      const rows = group.querySelectorAll("tbody tr");
+      let g=0,r=0,b=0,n=0;
+      let totalRow=null;
+      rows.forEach(row=>{
+        const label = row.cells[0]?.innerText.trim().toUpperCase();
+        if (!label) return;
+        if (label.startsWith("TOTAL")) { totalRow=row; return; }
+        const fs = fsTotals[label];
+        if (fs) { g+=fs.gross||0; r+=fs.reject||0; b+=fs.bo||0; n+=fs.net||0; }
+      });
+      if (totalRow) {
+        if (totalRow.cells[1]) totalRow.cells[1].textContent = fmt(g);
+        if (totalRow.cells[2]) totalRow.cells[2].textContent = fmt(r);
+        if (totalRow.cells[3]) totalRow.cells[3].textContent = fmt(b);
+        if (totalRow.cells[4]) totalRow.cells[4].textContent = fmt(n);
+
+        const target = totalRow.cells[5] ? num(totalRow.cells[5].innerText) : 0;
+        if (totalRow.cells[6]) totalRow.cells[6].textContent = target ? (n/target*100).toFixed(2)+"%" : "-";
+        if (totalRow.cells[7]) {
+          const bal = n - target;
+          totalRow.cells[7].textContent = (bal<0?"(":"") + fmt(Math.abs(bal)) + (bal<0?")":"");
+          totalRow.cells[7].style.color = bal<0 ? "red" : "green";
+        }
+      }
+    });
+  });
+
+  // Keep your existing dropdown / logout / KPI scripts — no change needed.
+</script>
 </body>
 </html>
