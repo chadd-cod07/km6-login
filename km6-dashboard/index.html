@@ -519,49 +519,11 @@ window.addEventListener("load", () => {
   });
 });
 </script>
-<!-- ===== Firebase Cloud Sync (add this before your other scripts) ===== -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-  import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyCStpCWdRO770N4SpH3GKYwp9pg1kP6_O4",
-    authDomain: "km6-dashboard.firebaseapp.com",
-    projectId: "km6-dashboard",
-    storageBucket: "km6-dashboard.firebasestorage.app",
-    messagingSenderId: "309068846407",
-    appId: "1:309068846407:web:68d51a21f6ab238fa1a862"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-
-  async function loadDashboardData() {
-    try {
-      const totalsSnap = await getDoc(doc(db, "km6_dashboard_data", "dashboardTotals"));
-      const fsSnap = await getDoc(doc(db, "km6_dashboard_data", "fsTotals"));
-
-      if (totalsSnap.exists()) localStorage.setItem("dashboardTotals", JSON.stringify(totalsSnap.data()));
-      if (fsSnap.exists()) localStorage.setItem("fsTotals", JSON.stringify(fsSnap.data()));
-
-      console.log("✅ Data loaded from Firestore (KM6 Cloud).");
-    } catch (err) {
-      console.warn("⚠️ Firestore load failed, using localStorage backup.", err);
-    }
-  }
-
-  window.addEventListener("DOMContentLoaded", loadDashboardData);
-</script>
-
-<!-- ===== Your existing scripts start here (keep them as-is) ===== -->
-<script>
-  // ... dropdown menu, logout redirect, data rendering, etc.
-</script>
-<!-- === Firebase Sync for Dashboard === -->
+<!-- === Firebase Cloud Load for Dashboard === -->
 <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore-compat.js"></script>
 <script>
-  // Firebase configuration
+  // Initialize Firebase (must match your upload.html)
   const firebaseConfig = {
     apiKey: "AIzaSyCStpCWdRO770N4SpH3GKYwp9pg1kP6_O4",
     authDomain: "km6-dashboard.firebaseapp.com",
@@ -570,44 +532,51 @@ window.addEventListener("load", () => {
     messagingSenderId: "309068846407",
     appId: "1:309068846407:web:68d51a21f6ab238fa1a862"
   };
-
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
 
-  // Load data when page opens
-  async function loadDashboardFromFirebase() {
+  // Load dashboard totals from Firebase
+  async function loadDashboardData() {
     try {
-      const doc = await db.collection("km6_dashboard_data").doc("dashboardTotals").get();
+      const totalsDoc = await db.collection("km6_dashboard_data").doc("dashboardTotals").get();
       const fsDoc = await db.collection("km6_dashboard_data").doc("fsTotals").get();
 
-      if (doc.exists && fsDoc.exists) {
-        const totals = doc.data();
+      if (totalsDoc.exists && fsDoc.exists) {
+        const totals = totalsDoc.data();
         const fsTotals = fsDoc.data();
 
-        console.log("☁️ Firebase data loaded:", totals, fsTotals);
+        console.log("☁️ Loaded data from Firebase:", totals, fsTotals);
 
-        // Store in localStorage for offline access
+        // Save to localStorage (optional, for offline)
         localStorage.setItem("dashboardTotals", JSON.stringify(totals));
         localStorage.setItem("fsTotals", JSON.stringify(fsTotals));
 
-        // Trigger your existing display function
-        if (typeof updateDashboardDisplay === "function") {
-          updateDashboardDisplay();
-        } else {
-          console.warn("⚠️ No updateDashboardDisplay() found, data loaded only to localStorage.");
-        }
+        // 🔁 Optional: update your dashboard display automatically
+        updateDashboard(totals, fsTotals);
       } else {
-        console.warn("⚠️ No Firebase data found yet.");
+        console.warn("⚠️ No data found in Firebase yet.");
       }
-    } catch (err) {
-      console.error("❌ Error loading Firebase data:", err);
+    } catch (error) {
+      console.error("❌ Error loading Firebase data:", error);
     }
   }
 
-  // Run it when page loads
-  document.addEventListener("DOMContentLoaded", loadDashboardFromFirebase);
+  // Example dashboard update (customize this for your layout)
+  function updateDashboard(totals, fsTotals) {
+    const fmt = n => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 3 });
+    document.getElementById("km6Gross").textContent = fmt(totals.KM6.gross);
+    document.getElementById("km6Reject").textContent = fmt(totals.KM6.reject);
+    document.getElementById("km6BO").textContent = fmt(totals.KM6.bo);
+    document.getElementById("km6Net").textContent = fmt(totals.KM6.net);
+    document.getElementById("kmlGross").textContent = fmt(totals.KML.gross);
+    document.getElementById("kmlReject").textContent = fmt(totals.KML.reject);
+    document.getElementById("kmlBO").textContent = fmt(totals.KML.bo);
+    document.getElementById("kmlNet").textContent = fmt(totals.KML.net);
+  }
+
+  // Run on page load
+  loadDashboardData();
 </script>
 
 </body>
 </html>
-
