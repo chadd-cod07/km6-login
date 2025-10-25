@@ -8,18 +8,54 @@
   <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore-compat.js"></script>
   <style>
-    body {font-family:Arial, sans-serif;background:#f6f8fa;text-align:center;padding:40px;}
-    h2 {color:#00843d;}
-    .container{display:flex;flex-wrap:wrap;justify-content:center;gap:30px;margin-top:30px;}
-    .card{background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.1);padding:30px;width:400px;text-align:center;}
-    .card h3{margin:0;color:#00843d;}
-    .card p{color:#444;}
-    input[type=file]{padding:8px;border:2px dashed #00843d;border-radius:10px;background:#fff;width:80%;margin:12px auto;cursor:pointer;}
-    button{background:#00843d;color:#fff;border:none;padding:10px 22px;border-radius:6px;cursor:pointer;margin-top:10px;}
-    button:hover{background:#006b32;}
-    .status{margin-top:14px;color:#00843d;font-weight:bold;}
-    .error{color:red;}
-    .back-btn{margin-top:40px;background:#333;color:#fff;padding:10px 25px;border-radius:8px;text-decoration:none;display:inline-block;}
+    body {
+      font-family: Arial, sans-serif;
+      background: #f6f8fa;
+      text-align: center;
+      padding: 40px;
+    }
+    h2 { color: #00843d; }
+    .container { display: flex; flex-wrap: wrap; justify-content: center; gap: 30px; margin-top: 30px; }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      padding: 30px;
+      width: 400px;
+      text-align: center;
+    }
+    .card h3 { margin: 0; color: #00843d; }
+    .card p { color: #444; }
+    input[type=file] {
+      padding: 8px;
+      border: 2px dashed #00843d;
+      border-radius: 10px;
+      background: #fff;
+      width: 80%;
+      margin: 12px auto;
+      cursor: pointer;
+    }
+    button {
+      background: #00843d;
+      color: #fff;
+      border: none;
+      padding: 10px 22px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    button:hover { background: #006b32; }
+    .status { margin-top: 14px; color: #00843d; font-weight: bold; font-size: 15px; line-height: 1.4; }
+    .error { color: red; }
+    .back-btn {
+      margin-top: 40px;
+      background: #333;
+      color: #fff;
+      padding: 10px 25px;
+      border-radius: 8px;
+      text-decoration: none;
+      display: inline-block;
+    }
   </style>
 </head>
 <body>
@@ -49,141 +85,170 @@
 
   <a class="back-btn" href="index.html">⬅ Go Back to Dashboard</a>
 
-  <script>
-    // --- Firebase Setup ---
-    const firebaseConfig = {
-      apiKey: "AIzaSyCStpCWdRO770N4SpH3GKYwp9pg1kP6_O4",
-      authDomain: "km6-dashboard.firebaseapp.com",
-      projectId: "km6-dashboard",
-      storageBucket: "km6-dashboard.appspot.com",
-      messagingSenderId: "309068846407",
-      appId: "1:309068846407:web:68d51a21f6ab238fa1a862"
-    };
-    if (firebase.apps.length === 0) firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
+<script>
+  // --- Firebase Setup ---
+  const firebaseConfig = {
+    apiKey: "AIzaSyCStpCWdRO770N4SpH3GKYwp9pg1kP6_O4",
+    authDomain: "km6-dashboard.firebaseapp.com",
+    projectId: "km6-dashboard",
+    storageBucket: "km6-dashboard.appspot.com",
+    messagingSenderId: "309068846407",
+    appId: "1:309068846407:web:68d51a21f6ab238fa1a862"
+  };
+  if (firebase.apps.length === 0) firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
 
-    const fmt = n => Number(n||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
-    const num = t => parseFloat(String(t||"").replace(/[^0-9.-]/g,""))||0;
-    const U = s => String(s||"").trim().toUpperCase();
+  const fmt = n => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const num = t => parseFloat(String(t || "").replace(/[^0-9.-]/g, "")) || 0;
+  const U = s => String(s || "").trim().toUpperCase();
 
-    // --- Upload Daily Sales (dataweb.xlsx) ---
-    document.getElementById("uploadDaily").addEventListener("click", async ()=>{
-      const file = document.getElementById("fileDaily").files[0];
-      const status = document.getElementById("statusDaily");
-      if(!file) return alert("Please select dataweb.xlsx file first.");
+  // Helper: find sheet by partial name
+  function findSheet(wb, name) {
+    const key = wb.SheetNames.find(s => s.toLowerCase().includes(name.toLowerCase()));
+    return key ? wb.Sheets[key] : null;
+  }
 
-      try {
-        const data = await file.arrayBuffer();
-        const wb = XLSX.read(data, {type:"array"});
+  // --- Upload Daily Sales (dataweb.xlsx) ---
+  document.getElementById("uploadDaily").addEventListener("click", async () => {
+    const file = document.getElementById("fileDaily").files[0];
+    const status = document.getElementById("statusDaily");
+    if (!file) return alert("Please select dataweb.xlsx file first.");
 
-        const grossSheet = wb.Sheets["Gross"];
-        const netSheet = wb.Sheets["P_Net.Inv"];
-        const invSheet = wb.Sheets["Invoice date"];
-        if(!grossSheet || !netSheet || !invSheet) {
-          status.innerHTML = `<span class='error'>❌ Missing required sheets (Gross, P_Net.Inv, Invoice date)</span>`;
-          return;
-        }
+    try {
+      const data = await file.arrayBuffer();
+      const wb = XLSX.read(data, { type: "array" });
 
-        const grossRows = XLSX.utils.sheet_to_json(grossSheet);
-        const netRows = XLSX.utils.sheet_to_json(netSheet);
-        const invRows = XLSX.utils.sheet_to_json(invSheet);
+      // Detect sheets (case-insensitive)
+      const grossSheet = findSheet(wb, "gross");
+      const netSheet = findSheet(wb, "p_net");
+      const invSheet = findSheet(wb, "invoice");
 
-        const totals = {KM6:{gross:0,reject:0,bo:0,net:0},KML:{gross:0,reject:0,bo:0,net:0}};
-        const fsTotals = {};
-
-        // --- Process Gross ---
-        for(const r of grossRows){
-          const branch = U(r["Branch Name"]||"");
-          const fs = U(r["FS"]||"");
-          const val = num(r["Sum of Order Amount"]);
-          if(!fs) continue;
-          if(!fsTotals[fs]) fsTotals[fs]={gross:0,reject:0,bo:0,net:0};
-          fsTotals[fs].gross += val;
-          if(branch.includes("KM6")||branch.includes("BAGUIO")) totals.KM6.gross+=val;
-          if(branch.includes("KML")||branch.includes("LA UNION")) totals.KML.gross+=val;
-        }
-
-        // --- Process Net + Rejection + BO ---
-        for(const r of netRows){
-          const branch = U(r["Branch Name"]||"");
-          const fs = U(r["FS"]||"");
-          const rej = num(r["TOTAL REJECTION"]);
-          const bo = num(r["TOTAL BO"]);
-          const net = num(r["TOTAL NET"]);
-          if(!fs) continue;
-          if(!fsTotals[fs]) fsTotals[fs]={gross:0,reject:0,bo:0,net:0};
-          fsTotals[fs].reject += rej;
-          fsTotals[fs].bo += bo;
-          fsTotals[fs].net += net;
-          if(branch.includes("KM6")||branch.includes("BAGUIO")){
-            totals.KM6.reject+=rej;totals.KM6.bo+=bo;totals.KM6.net+=net;
-          }
-          if(branch.includes("KML")||branch.includes("LA UNION")){
-            totals.KML.reject+=rej;totals.KML.bo+=bo;totals.KML.net+=net;
-          }
-        }
-
-        // --- Process Invoice date (last 2 days) ---
-        let invoiceDate = {current:{},previous:{}};
-        if(invRows.length>=2){
-          const last = invRows[invRows.length-1];
-          const prev = invRows[invRows.length-2];
-          invoiceDate = {
-            current:{KM6:num(last["KM6"]),KML:num(last["KML"])},
-            previous:{KM6:num(prev["KM6"]),KML:num(prev["KML"])}
-          };
-        }
-
-        // --- Save to Firebase ---
-        await db.collection("km6_dashboard_data").doc("dashboardTotals").set(totals);
-        await db.collection("km6_dashboard_data").doc("fsTotals").set(fsTotals);
-        await db.collection("km6_dashboard_data").doc("invoiceDate").set(invoiceDate);
-
-        // --- Save locally ---
-        localStorage.setItem("dashboardTotals",JSON.stringify(totals));
-        localStorage.setItem("fsTotals",JSON.stringify(fsTotals));
-        localStorage.setItem("invoiceDateData",JSON.stringify(invoiceDate));
-
-        status.innerHTML = `✅ Uploaded successfully!<br>Last updated: ${new Date().toLocaleString()}`;
-      } catch(err){
-        console.error(err);
-        status.innerHTML = `<span class='error'>❌ Error: ${err.message}</span>`;
+      let progress = "";
+      if (!grossSheet || !netSheet || !invSheet) {
+        status.innerHTML = `<span class='error'>❌ Missing required sheets (Gross, P_Net.Inv, Invoice Date)</span>`;
+        return;
       }
-    });
 
-    // --- Upload Target.xlsx ---
-    document.getElementById("uploadTarget").addEventListener("click", async ()=>{
-      const file = document.getElementById("fileTarget").files[0];
-      const status = document.getElementById("statusTarget");
-      if(!file) return alert("Please select Target.xlsx file first.");
+      if (grossSheet) progress += "✔ Gross loaded<br>";
+      if (netSheet) progress += "✔ P_Net.Inv loaded<br>";
+      if (invSheet) progress += "✔ Invoice Date loaded<br>";
+      status.innerHTML = progress + "⏳ Processing...";
 
-      try {
-        const data = await file.arrayBuffer();
-        const wb = XLSX.read(data,{type:"array"});
-        const sheet = wb.Sheets["Target"];
-        if(!sheet){status.innerHTML=`<span class='error'>❌ Missing 'Target' sheet</span>`;return;}
-        const rows = XLSX.utils.sheet_to_json(sheet);
+      const grossRows = XLSX.utils.sheet_to_json(grossSheet);
+      const netRows = XLSX.utils.sheet_to_json(netSheet);
+      const invRows = XLSX.utils.sheet_to_json(invSheet);
 
-        const branches={}, fsTargets={};
-        for(const r of rows){
-          const branch=U(r["Branch"]||"");
-          const fs=U(r["FS"]||"");
-          const val=num(r["Target Value"]);
-          if(branch) branches[branch]=(branches[branch]||0)+val;
-          if(fs) fsTargets[fs]=(fsTargets[fs]||0)+val;
-        }
+      const totals = { KM6: { gross: 0, reject: 0, bo: 0, net: 0 }, KML: { gross: 0, reject: 0, bo: 0, net: 0 } };
+      const fsTotals = {};
 
-        const targets={branches,fs:fsTargets};
+      // --- Process Gross ---
+      for (const r of grossRows) {
+        const record = {};
+        for (let [key, val] of Object.entries(r)) record[key.trim().toUpperCase()] = val;
 
-        await db.collection("km6_dashboard_data").doc("targets").set(targets);
-        localStorage.setItem("targets",JSON.stringify(targets));
-
-        status.innerHTML=`✅ Target uploaded!<br>Last updated: ${new Date().toLocaleString()}`;
-      } catch(err){
-        console.error(err);
-        status.innerHTML=`<span class='error'>❌ Error: ${err.message}</span>`;
+        const branch = U(record["BRANCH NAME"]);
+        const fs = U(record["FS"]);
+        const val = num(record["SUM OF ORDER AMOUNT"]);
+        if (!fs) continue;
+        if (!fsTotals[fs]) fsTotals[fs] = { gross: 0, reject: 0, bo: 0, net: 0 };
+        fsTotals[fs].gross += val;
+        if (branch.includes("KM6") || branch.includes("BAGUIO")) totals.KM6.gross += val;
+        if (branch.includes("KML") || branch.includes("LA UNION")) totals.KML.gross += val;
       }
-    });
-  </script>
+
+      // --- Process P_Net.Inv ---
+      for (const r of netRows) {
+        const record = {};
+        for (let [key, val] of Object.entries(r)) record[key.trim().toUpperCase()] = val;
+
+        const branch = U(record["BRANCH NAME"]);
+        const fs = U(record["FS"]);
+        const rej = num(record["TOTAL REJECTION"]);
+        const bo = num(record["TOTAL BO"]);
+        const net = num(record["TOTAL NET"]);
+        if (!fs) continue;
+        if (!fsTotals[fs]) fsTotals[fs] = { gross: 0, reject: 0, bo: 0, net: 0 };
+        fsTotals[fs].reject += rej;
+        fsTotals[fs].bo += bo;
+        fsTotals[fs].net += net;
+
+        if (branch.includes("KM6") || branch.includes("BAGUIO")) {
+          totals.KM6.reject += rej; totals.KM6.bo += bo; totals.KM6.net += net;
+        }
+        if (branch.includes("KML") || branch.includes("LA UNION")) {
+          totals.KML.reject += rej; totals.KML.bo += bo; totals.KML.net += net;
+        }
+      }
+
+      // --- Process Invoice Date ---
+      let invoiceDate = { current: {}, previous: {} };
+      if (invRows.length >= 2) {
+        const last = invRows[invRows.length - 1];
+        const prev = invRows[invRows.length - 2];
+        invoiceDate = {
+          current: { KM6: num(last["KM6"]), KML: num(last["KML"]) },
+          previous: { KM6: num(prev["KM6"]), KML: num(prev["KML"]) }
+        };
+      }
+
+      // --- Save to Firebase ---
+      await db.collection("km6_dashboard_data").doc("dashboardTotals").set(totals);
+      await db.collection("km6_dashboard_data").doc("fsTotals").set(fsTotals);
+      await db.collection("km6_dashboard_data").doc("invoiceDate").set(invoiceDate);
+
+      // --- Save locally for Firebase Dashboard ---
+      localStorage.setItem("dashboardTotals", JSON.stringify(totals));
+      localStorage.setItem("fsTotals", JSON.stringify(fsTotals));
+      localStorage.setItem("invoiceDateData", JSON.stringify(invoiceDate));
+
+      // --- Compatibility for index.html (offline sync) ---
+      localStorage.setItem("dataweb", JSON.stringify(grossRows));
+      localStorage.setItem("pnetinv", JSON.stringify(netRows));
+      localStorage.setItem("invoicedate", JSON.stringify(invRows));
+
+      status.innerHTML = `${progress}✅ Uploaded successfully!<br>Last updated: ${new Date().toLocaleString()}`;
+    } catch (err) {
+      console.error(err);
+      status.innerHTML = `<span class='error'>❌ Error: ${err.message}</span>`;
+    }
+  });
+
+  // --- Upload Target.xlsx ---
+  document.getElementById("uploadTarget").addEventListener("click", async () => {
+    const file = document.getElementById("fileTarget").files[0];
+    const status = document.getElementById("statusTarget");
+    if (!file) return alert("Please select Target.xlsx file first.");
+
+    try {
+      const data = await file.arrayBuffer();
+      const wb = XLSX.read(data, { type: "array" });
+      const sheet = findSheet(wb, "target");
+      if (!sheet) {
+        status.innerHTML = `<span class='error'>❌ Missing 'Target' sheet</span>`;
+        return;
+      }
+
+      const rows = XLSX.utils.sheet_to_json(sheet);
+      const branches = {}, fsTargets = {};
+      for (const r of rows) {
+        const branch = U(r["Branch"] || "");
+        const fs = U(r["FS"] || "");
+        const val = num(r["Target Value"]);
+        if (branch) branches[branch] = (branches[branch] || 0) + val;
+        if (fs) fsTargets[fs] = (fsTargets[fs] || 0) + val;
+      }
+
+      const targets = { branches, fs: fsTargets };
+      await db.collection("km6_dashboard_data").doc("targets").set(targets);
+      localStorage.setItem("targets", JSON.stringify(targets));
+
+      status.innerHTML = `✔ Target sheet loaded (${rows.length} rows)<br>✅ Target uploaded!<br>Last updated: ${new Date().toLocaleString()}`;
+    } catch (err) {
+      console.error(err);
+      status.innerHTML = `<span class='error'>❌ Error: ${err.message}</span>`;
+    }
+  });
+</script>
+
 </body>
 </html>

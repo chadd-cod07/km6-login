@@ -181,361 +181,265 @@
     </div>
   </section>
 
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore-compat.js"></script>
-  <script>
-    // --- Firebase init ---
-    const firebaseConfig = {
-      apiKey: "AIzaSyCStpCWdRO770N4SpH3GKYwp9pg1kP6_O4",
-      authDomain: "km6-dashboard.firebaseapp.com",
-      projectId: "km6-dashboard",
-      storageBucket: "km6-dashboard.appspot.com",
-      messagingSenderId: "309068846407",
-      appId: "1:309068846407:web:68d51a21f6ab238fa1a862",
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore-compat.js"></script>
+<script>
+/* -----------------------------------------------------------
+   🔥 FIREBASE INITIALIZATION
+----------------------------------------------------------- */
+const firebaseConfig = {
+  apiKey: "AIzaSyCStpCWdRO770N4SpH3GKYwp9pg1kP6_O4",
+  authDomain: "km6-dashboard.firebaseapp.com",
+  projectId: "km6-dashboard",
+  storageBucket: "km6-dashboard.appspot.com",
+  messagingSenderId: "309068846407",
+  appId: "1:309068846407:web:68d51a21f6ab238fa1a862",
+};
+if (firebase.apps.length === 0) firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+/* -----------------------------------------------------------
+   🧮 HELPER FUNCTIONS
+----------------------------------------------------------- */
+const fmt = n => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const num = v => parseFloat(String(v || "0").replace(/[^0-9.-]/g, "")) || 0;
+const U = s => String(s || "").trim().toUpperCase();
+
+/* -----------------------------------------------------------
+   ☰ MENU DROPDOWN BEHAVIOR
+----------------------------------------------------------- */
+const menuIcon = document.querySelector(".menu-icon");
+const dropdownMenu = document.getElementById("dropdownMenu");
+menuIcon.addEventListener("click", () => {
+  dropdownMenu.style.display = dropdownMenu.style.display === "block" ? "none" : "block";
+});
+window.addEventListener("click", (e) => {
+  if (!e.target.closest(".menu-container")) dropdownMenu.style.display = "none";
+});
+
+const logoutLink = document.getElementById("logoutLink");
+if (logoutLink) {
+  logoutLink.addEventListener("click", (e) => {
+    e.preventDefault();
+    window.location.href = "https://chadd-cod07.github.io/km6-login/";
+  });
+}
+
+/* -----------------------------------------------------------
+   📅 DATE HEADER INFO
+----------------------------------------------------------- */
+(function updateKPIs(){
+  const now = new Date();
+  document.querySelector(".summary .date").textContent = now.toLocaleDateString(undefined, { weekday:"short", month:"short", day:"numeric", year:"numeric" });
+  const sellingDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const actual = now.getDate();
+  document.getElementById("sellingDays").textContent = sellingDays;
+  document.getElementById("actualDays").textContent = actual;
+  document.getElementById("progressPct").textContent = Math.round(actual/sellingDays*100) + "%";
+  document.getElementById("remainingDays").textContent = sellingDays - actual;
+})();
+
+/* -----------------------------------------------------------
+   🧩 AUTO COMPUTATION (Reflects Uploaded Excel Data)
+----------------------------------------------------------- */
+async function waitForUploads() {
+  return new Promise(resolve => {
+    const check = () => {
+      const dw = localStorage.getItem("dataweb");
+      const pn = localStorage.getItem("pnetinv");
+      const id = localStorage.getItem("invoicedate");
+      if (dw && pn && id) resolve(true);
+      else setTimeout(check, 1000);
     };
-    if (firebase.apps.length === 0) firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
+    check();
+  });
+}
 
-    // --- Helpers ---
-    const fmt = n => Number(n||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
-    const num = t => parseFloat(String(t||"").replace(/[^0-9.-]/g,""))||0;
-    const up = el => (el.className="up",el);
-    const down = el => (el.className="down",el);
-    const U = s => String(s||"").trim().toUpperCase();
+async function computeKM6Dashboard() {
+  await waitForUploads();
+// Keep your existing 3 lines
+const dataweb = JSON.parse(localStorage.getItem("dataweb") || "[]");
+const pnetinv = JSON.parse(localStorage.getItem("pnetinv") || "[]");
+const invoicedate = JSON.parse(localStorage.getItem("invoicedate") || "[]");
 
-    // --- Menu behaviour (ordered) ---
-    const menuIcon = document.querySelector(".menu-icon");
-    const dropdownMenu = document.getElementById("dropdownMenu");
-    menuIcon.addEventListener("click",()=>dropdownMenu.style.display=dropdownMenu.style.display==="block"?"none":"block");
-    window.addEventListener("click",e=>{if(!e.target.closest(".menu-container")) dropdownMenu.style.display="none"});
+// 🔹 Add these new lines to handle FS totals + Target sheet
+const fsTotals = JSON.parse(localStorage.getItem("fsTotals") || "{}");
+const targets = JSON.parse(localStorage.getItem("targets") || "{}");
 
-    // Optional: logout redirect
-    const logoutLink = document.getElementById("logoutLink");
-    if (logoutLink) logoutLink.addEventListener("click",(e)=>{ e.preventDefault(); window.location.href="https://chadd-cod07.github.io/km6-login/"; });
+// Debugging logs for clarity
+console.log("📘 dataweb (Gross):", dataweb);
+console.log("📗 pnetinv (P_Net.Inv):", pnetinv);
+console.log("📙 invoicedate (Invoice Date):", invoicedate);
+console.log("📒 fsTotals (FS Computed):", fsTotals);
+console.log("🎯 targets (TargetSales):", targets);
 
-    // --- Date KPIs ---
-    (function updateKPIs(){
-      const now=new Date();
-      document.querySelector(".summary .date").textContent = now.toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric",year:"numeric"});
-      const sellingDays=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
-      const actual=now.getDate();
-      document.getElementById("sellingDays").textContent=sellingDays;
-      document.getElementById("actualDays").textContent=actual;
-      document.getElementById("progressPct").textContent=Math.round(actual/sellingDays*100)+"%";
-      document.getElementById("remainingDays").textContent=sellingDays-actual;
-    })();
-
-    // --- State (also backed by localStorage)
-    let totals = JSON.parse(localStorage.getItem("dashboardTotals")||"{}");
-    let fsTotals = JSON.parse(localStorage.getItem("fsTotals")||"{}");
-    let targets = JSON.parse(localStorage.getItem("targets")||"{}");
-    let invoice = JSON.parse(localStorage.getItem("invoiceDateData")||"{}");
-
-    const setStamp = () => { const s=document.getElementById("lastUpdated"); if(s) s.textContent="Last updated: "+new Date().toLocaleString(); };
-
-    // --- Branch Summary render
-    function renderBranchSummary(){
-      if(!totals?.KM6 || !totals?.KML) return;
-
-      // Baguio (KM6)
-      const km6 = totals.KM6;
-      document.getElementById("km6Gross").textContent = fmt(km6.gross);
-      document.getElementById("km6Reject").textContent = fmt(km6.reject);
-      document.getElementById("km6BO").textContent = fmt(km6.bo);
-      document.getElementById("km6Net").textContent = fmt(km6.net);
-      const tKM6 = targets?.branches?.["KM6"] || targets?.branches?.["BAGUIO"] || 0;
-      document.getElementById("km6Target").textContent = fmt(tKM6);
-      document.getElementById("km6Pct").textContent = tKM6 ? ((km6.net/tKM6)*100).toFixed(2)+"%" : "-";
-      const bal6 = km6.net - tKM6;
-      document.getElementById("km6Bal").textContent = (bal6<0?"(":"")+fmt(Math.abs(bal6))+(bal6<0?")":"");
-      document.getElementById("km6Bal").style.color = bal6<0?"red":"green";
-
-      // La Union (KML)
-      const kml = totals.KML;
-      document.getElementById("kmlGross").textContent = fmt(kml.gross);
-      document.getElementById("kmlReject").textContent = fmt(kml.reject);
-      document.getElementById("kmlBO").textContent = fmt(kml.bo);
-      document.getElementById("kmlNet").textContent = fmt(kml.net);
-      const tKML = targets?.branches?.["KML"] || targets?.branches?.["LA UNION"] || 0;
-      document.getElementById("kmlTarget").textContent = fmt(tKML);
-      document.getElementById("kmlPct").textContent = tKML ? ((kml.net/tKML)*100).toFixed(2)+"%" : "-";
-      const balL = kml.net - tKML;
-      document.getElementById("kmlBal").textContent = (balL<0?"(":"")+fmt(Math.abs(balL))+(balL<0?")":"");
-      document.getElementById("kmlBal").style.color = balL<0?"red":"green";
-
-      // TOTAL KM6 (KM6 + KML)
-      const gT = (km6.gross||0)+(kml.gross||0);
-      const rT = (km6.reject||0)+(kml.reject||0);
-      const bT = (km6.bo||0)+(kml.bo||0);
-      const nT = (km6.net||0)+(kml.net||0);
-      document.getElementById("totGross").textContent = fmt(gT);
-      document.getElementById("totReject").textContent = fmt(rT);
-      document.getElementById("totBO").textContent = fmt(bT);
-      document.getElementById("totNet").textContent = fmt(nT);
-      const tTOT = targets?.branches?.["TOTAL KM6"] || (tKM6 + tKML) || 0;
-      document.getElementById("totTarget").textContent = fmt(tTOT);
-      document.getElementById("totPct").textContent = tTOT ? ((nT/tTOT)*100).toFixed(2)+"%" : "-";
-      const balT = nT - tTOT;
-      document.getElementById("totBal").textContent = (balT<0?"(":"")+fmt(Math.abs(balT))+(balT<0?")":"");
-      document.getElementById("totBal").style.color = balT<0?"red":"green";
-    }
-
-    // --- FS Table render helper
-    function renderFsTable(tbodyId, names){
-      const tbody = document.getElementById(tbodyId);
-      if(!tbody) return;
-      // Fill rows
-      [...tbody.querySelectorAll("tr")].forEach(tr=>{
-        const nameCell = tr.cells?.[0]; if(!nameCell) return;
-        const label = U(nameCell.innerText);
-        if (label.startsWith("TOTAL")) return; // skip total row here
-        const fs = fsTotals[ label ];
-        const tVal = targets?.fs?.[ label ] || 0;
-
-        // write metrics
-        if (fs){
-          tr.cells[1].textContent = fmt(fs.gross||0);
-          tr.cells[2].textContent = fmt(fs.reject||0);
-          tr.cells[3].textContent = fmt(fs.bo||0);
-          tr.cells[4].textContent = fmt(fs.net||0);
-        } else {
-          tr.cells[1].textContent = tr.cells[2].textContent = tr.cells[3].textContent = tr.cells[4].textContent = fmt(0);
-        }
-        tr.cells[5].textContent = fmt(tVal);
-        const pct = tVal ? (((fs?.net||0)/tVal)*100).toFixed(2)+"%" : "-";
-        tr.cells[6].textContent = pct;
-        const bal = (fs?.net||0) - tVal;
-        tr.cells[7].textContent = (bal<0?"(":"")+fmt(Math.abs(bal))+(bal<0?")":"");
-        tr.cells[7].style.color = bal<0?"red":"green";
-      });
-
-      // Recompute TOTAL row
-      let g=0,r=0,b=0,n=0; let totalRow=null;
-      [...tbody.querySelectorAll("tr")].forEach(tr=>{
-        const label = U(tr.cells?.[0]?.innerText);
-        if(!label) return;
-        if(label.startsWith("TOTAL")) { totalRow = tr; return; }
-        g += num(tr.cells[1]?.innerText);
-        r += num(tr.cells[2]?.innerText);
-        b += num(tr.cells[3]?.innerText);
-        n += num(tr.cells[4]?.innerText);
-      });
-      if(totalRow){
-        totalRow.cells[1].textContent = fmt(g);
-        totalRow.cells[2].textContent = fmt(r);
-        totalRow.cells[3].textContent = fmt(b);
-        totalRow.cells[4].textContent = fmt(n);
-        // Targets for TOTAL rows are not usually defined per group; keep dashes:
-        totalRow.cells[5].textContent = "-";
-        totalRow.cells[6].textContent = "-";
-        totalRow.cells[7].textContent = fmt(n);
-        totalRow.cells[7].style.color = "green";
-      }
-    }
-
-    // --- Daily Cards (from invoiceDate)
-    function renderDailyCards(){
-      if(!invoice?.current || !invoice?.previous) return;
-      const currKM6 = (invoice.current.KM6||0), currKML = (invoice.current.KML||0);
-      const prevKM6 = (invoice.previous.KM6||0), prevKML = (invoice.previous.KML||0);
-      const set = (idPrev,idCurr,idChange,prev,curr)=>{
-        document.getElementById(idPrev).textContent = fmt(prev);
-        document.getElementById(idCurr).textContent = fmt(curr);
-        const ch = document.getElementById(idChange);
-        const pct = prev ? ((curr-prev)/prev*100).toFixed(2) : 0;
-        ch.textContent = (pct>=0?`▲ ${pct}%`:`▼ ${Math.abs(pct)}%`);
-        ch.className = pct>=0?"up":"down";
-      };
-      set("prevKM6","currKM6","changeKM6", prevKM6+prevKML, currKM6+currKML);
-      set("prevBaguio","currBaguio","changeBaguio", prevKM6, currKM6);
-      set("prevLU","currLU","changeLU", prevKML, currKML);
-    }
-
-    // --- Live listeners (and cache)
-    db.collection("km6_dashboard_data").doc("dashboardTotals").onSnapshot(s=>{
-      if(!s.exists) return;
-      totals = s.data(); localStorage.setItem("dashboardTotals",JSON.stringify(totals));
-      renderBranchSummary(); setStamp();
-    });
-    db.collection("km6_dashboard_data").doc("fsTotals").onSnapshot(s=>{
-      if(!s.exists) return;
-      fsTotals = normalizeFsKeys(s.data()); // normalize keys to UPPER
-      localStorage.setItem("fsTotals", JSON.stringify(fsTotals));
-      renderFsTable("tblKCM");
-      renderFsTable("tblLU");
-      renderFsTable("tblBG");
-      setStamp();
-    });
-    db.collection("km6_dashboard_data").doc("targets").onSnapshot(s=>{
-      if(!s.exists) return;
-      const raw = s.data()||{};
-      targets = {
-        branches: mapUpper(raw.branches||{}),
-        fs: mapUpper(raw.fs||{})
-      };
-      localStorage.setItem("targets", JSON.stringify(targets));
-      renderBranchSummary();
-      renderFsTable("tblKCM"); renderFsTable("tblLU"); renderFsTable("tblBG");
-      setStamp();
-    });
-    db.collection("km6_dashboard_data").doc("invoiceDate").onSnapshot(s=>{
-      if(!s.exists) return;
-      invoice = s.data(); localStorage.setItem("invoiceDateData", JSON.stringify(invoice));
-      renderDailyCards(); setStamp();
-    });
-
-    // --- Bootstrap from cache on first load
-    function mapUpper(obj){ const out={}; for(const k in obj) out[U(k)]=obj[k]; return out; }
-    function normalizeFsKeys(obj){ const out={}; for(const k in obj){ out[U(k)] = obj[k]; } return out; }
-
-    (function boot(){
-      totals && renderBranchSummary();
-      fsTotals = normalizeFsKeys(fsTotals||{});
-      renderFsTable("tblKCM"); renderFsTable("tblLU"); renderFsTable("tblBG");
-      targets = { branches: mapUpper(targets.branches||{}), fs: mapUpper(targets.fs||{}) };
-      renderBranchSummary();
-      renderDailyCards();
-      setStamp();
-    })();
-  </script>
- <script>
-// =====================================================
-// ✅ FIXED AUTO COMPUTATION (Reflects Uploaded Data)
-// =====================================================
-
-// Helper functions (reuse safe versions)
-const fmt2 = n => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const num2 = v => parseFloat(String(v || "0").replace(/[^0-9.-]/g, "")) || 0;
-
-// Main refresh function
-function computeDashboardFromUploads() {
-  const dataweb = JSON.parse(localStorage.getItem("dataweb") || "[]");
-  const pnetinv = JSON.parse(localStorage.getItem("pnetinv") || "[]");
-  const invoicedate = JSON.parse(localStorage.getItem("invoicedate") || "[]");
-
-  if (dataweb.length === 0 && pnetinv.length === 0) {
-    console.log("No uploaded Excel data found yet.");
+  if (!dataweb.length && !pnetinv.length) {
+    console.warn("⚠️ No uploaded Excel data found.");
     return;
   }
 
-  console.log("Recomputing dashboard from uploaded Excel data...");
+  console.log("🔄 Computing dashboard from uploaded Excel data...");
 
-  // --- Totals per branch ---
+  // Initialize totals
   let totals = {
     KM6: { gross: 0, reject: 0, bo: 0, net: 0, target: 0 },
     KML: { gross: 0, reject: 0, bo: 0, net: 0, target: 0 },
   };
 
-  // Gross + Target
+  // --- Gross & Target (dataweb)
   dataweb.forEach(r => {
     const branch = (r["Branch Name"] || "").toUpperCase().trim();
-    const gross = num2(r["Sum of Order Amount"]);
+    const gross = num(r["Sum of Order Amount"]);
     if (branch === "KM6") totals.KM6.gross += gross;
     if (branch === "KML") totals.KML.gross += gross;
   });
   totals.KM6.target = totals.KM6.gross;
   totals.KML.target = totals.KML.gross;
 
-  // Rejection + BO + Net
+  // --- Rejection / BO / Net (pnetinv)
   pnetinv.forEach(r => {
     const branch = (r["Branch Name"] || "").toUpperCase().trim();
-    const rej = num2(r["TOTAL REJECTION"]);
-    const bo = num2(r["TOTAL BO"]);
-    const net = num2(r["TOTAL NET"]);
+    const rej = num(r["TOTAL REJECTION"]);
+    const bo = num(r["TOTAL BO"]);
+    const netv = num(r["TOTAL NET"]);
     if (branch === "KM6") {
-      totals.KM6.reject += rej;
-      totals.KM6.bo += bo;
-      totals.KM6.net += net;
+      totals.KM6.reject += rej; totals.KM6.bo += bo; totals.KM6.net += netv;
     } else if (branch === "KML") {
-      totals.KML.reject += rej;
-      totals.KML.bo += bo;
-      totals.KML.net += net;
+      totals.KML.reject += rej; totals.KML.bo += bo; totals.KML.net += netv;
     }
   });
 
-  // Combined Total KM6 (Baguio + La Union)
+  // --- Combine totals
   const totalGross = totals.KM6.gross + totals.KML.gross;
   const totalRej = totals.KM6.reject + totals.KML.reject;
   const totalBO = totals.KM6.bo + totals.KML.bo;
   const totalNet = totals.KM6.net + totals.KML.net;
   const totalTarget = totals.KM6.target + totals.KML.target;
 
-  // --- Update Branch Summary ---
-  const upd = (id, val) => (document.getElementById(id).textContent = fmt2(val));
+  // --- Render table
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = fmt(val); };
 
-  upd("km6Gross", totals.KM6.gross);
-  upd("km6Reject", totals.KM6.reject);
-  upd("km6BO", totals.KM6.bo);
-  upd("km6Net", totals.KM6.net);
-  upd("km6Target", totals.KM6.target);
-  document.getElementById("km6Pct").textContent = totals.KM6.target
-    ? ((totals.KM6.net / totals.KM6.target) * 100).toFixed(2) + "%"
-    : "-";
-  upd("km6Bal", totals.KM6.target - totals.KM6.net);
+  // KM6
+  set("km6Gross", totals.KM6.gross);
+  set("km6Reject", totals.KM6.reject);
+  set("km6BO", totals.KM6.bo);
+  set("km6Net", totals.KM6.net);
+  set("km6Target", totals.KM6.target);
+  document.getElementById("km6Pct").textContent = totals.KM6.target ? ((totals.KM6.net / totals.KM6.target) * 100).toFixed(2) + "%" : "-";
+  set("km6Bal", totals.KM6.target - totals.KM6.net);
 
-  upd("kmlGross", totals.KML.gross);
-  upd("kmlReject", totals.KML.reject);
-  upd("kmlBO", totals.KML.bo);
-  upd("kmlNet", totals.KML.net);
-  upd("kmlTarget", totals.KML.target);
-  document.getElementById("kmlPct").textContent = totals.KML.target
-    ? ((totals.KML.net / totals.KML.target) * 100).toFixed(2) + "%"
-    : "-";
-  upd("kmlBal", totals.KML.target - totals.KML.net);
+  // KML
+  set("kmlGross", totals.KML.gross);
+  set("kmlReject", totals.KML.reject);
+  set("kmlBO", totals.KML.bo);
+  set("kmlNet", totals.KML.net);
+  set("kmlTarget", totals.KML.target);
+  document.getElementById("kmlPct").textContent = totals.KML.target ? ((totals.KML.net / totals.KML.target) * 100).toFixed(2) + "%" : "-";
+  set("kmlBal", totals.KML.target - totals.KML.net);
 
-  upd("totGross", totalGross);
-  upd("totReject", totalRej);
-  upd("totBO", totalBO);
-  upd("totNet", totalNet);
-  upd("totTarget", totalTarget);
-  document.getElementById("totPct").textContent = totalTarget
-    ? ((totalNet / totalTarget) * 100).toFixed(2) + "%"
-    : "-";
-  upd("totBal", totalTarget - totalNet);
+  // TOTAL
+  set("totGross", totalGross);
+  set("totReject", totalRej);
+  set("totBO", totalBO);
+  set("totNet", totalNet);
+  set("totTarget", totalTarget);
+  document.getElementById("totPct").textContent = totalTarget ? ((totalNet / totalTarget) * 100).toFixed(2) + "%" : "-";
+  set("totBal", totalTarget - totalNet);
 
-  // --- Daily Sales ---
+  // --- Daily Sales cards (invoicedate)
   if (invoicedate.length > 1) {
     const last = invoicedate[invoicedate.length - 1];
     const prev = invoicedate[invoicedate.length - 2];
-    const km6Curr = num2(last["KM6"]) + num2(last["KML"]);
-    const km6Prev = num2(prev["KM6"]) + num2(prev["KML"]);
+    const km6Curr = num(last["KM6"]) + num(last["KML"]);
+    const km6Prev = num(prev["KM6"]) + num(prev["KML"]);
     const pct = km6Prev ? ((km6Curr - km6Prev) / km6Prev) * 100 : 0;
 
-    const updChange = (prevID, currID, changeID, prev, curr) => {
-      document.getElementById(prevID).textContent = fmt2(prev);
-      document.getElementById(currID).textContent = fmt2(curr);
-      const el = document.getElementById(changeID);
-      el.textContent = (pct >= 0 ? "▲ " : "▼ ") + Math.abs(pct).toFixed(2) + "%";
-      el.className = pct >= 0 ? "up" : "down";
+    const change = (idPrev, idCurr, idChange, prevVal, currVal) => {
+      const elP = document.getElementById(idPrev), elC = document.getElementById(idCurr), elCh = document.getElementById(idChange);
+      if (elP) elP.textContent = fmt(prevVal);
+      if (elC) elC.textContent = fmt(currVal);
+      if (elCh) {
+        elCh.textContent = (pct >= 0 ? "▲ " : "▼ ") + Math.abs(pct).toFixed(2) + "%";
+        elCh.className = pct >= 0 ? "up" : "down";
+      }
     };
-
-    updChange("prevKM6", "currKM6", "changeKM6", km6Prev, km6Curr);
-    updChange("prevBaguio", "currBaguio", "changeBaguio", num2(prev["KM6"]), num2(last["KM6"]));
-    updChange("prevLU", "currLU", "changeLU", num2(prev["KML"]), num2(last["KML"]));
+    change("prevKM6", "currKM6", "changeKM6", km6Prev, km6Curr);
+    change("prevBaguio", "currBaguio", "changeBaguio", num(prev["KM6"]), num(last["KM6"]));
+    change("prevLU", "currLU", "changeLU", num(prev["KML"]), num(last["KML"]));
   }
 
-  // --- Save to Firebase ---
+  // --- Save to Firebase
   db.collection("km6_dashboard_data").doc("dashboardTotals").set({
-    KM6: { gross: totals.KM6.gross, reject: totals.KM6.reject, bo: totals.KM6.bo, net: totals.KM6.net },
-    KML: { gross: totals.KML.gross, reject: totals.KML.reject, bo: totals.KML.bo, net: totals.KML.net },
+    KM6: totals.KM6,
+    KML: totals.KML,
     TOTAL: { gross: totalGross, reject: totalRej, bo: totalBO, net: totalNet },
     updated: new Date().toLocaleString(),
   });
 
-  document.getElementById("lastUpdated").textContent = "Last updated: " + new Date().toLocaleString();
-  console.log("✅ Dashboard updated from uploaded Excel data.");
+  const stamp = document.getElementById("lastUpdated");
+  if (stamp) stamp.textContent = "Last updated: " + new Date().toLocaleString();
+
+  console.log("✅ Dashboard updated and synced with Firebase");
+
+  // Now render FS tables
+  renderFSTables();
 }
 
-// Auto-run whenever localStorage changes (after upload)
+/* -----------------------------------------------------------
+   🧩 NEW FUNCTION - RENDER FS TABLES (KCM, KML, KM6)
+----------------------------------------------------------- */
+function renderFSTables() {
+  const fsTotals = JSON.parse(localStorage.getItem("fsTotals") || "{}");
+  const fmt = n => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const num = v => parseFloat(String(v || "0").replace(/[^0-9.-]/g, "")) || 0;
+
+  const groups = {
+    KCM: ["Jim Russel Peralta", "Judy Ann Mabanta", "Gilbert Aquino", "Roderick Dacay", "Gyver Gano"],
+    KML: ["Gemma Jacaban", "Jovelyn Castro"],
+    BG: ["Jehu Romero", "MC ARDEL CACHICHO", "Rocky Fowaya"]
+  };
+
+  for (const [group, names] of Object.entries(groups)) {
+    const tbody = document.querySelector(`#tbl${group}`);
+    if (!tbody) continue;
+    const totalRow = tbody.querySelector(".total");
+    tbody.innerHTML = "";
+    if (totalRow) tbody.appendChild(totalRow);
+    let total = { gross: 0, reject: 0, bo: 0, net: 0 };
+
+    names.forEach(name => {
+      const data = fsTotals[name.toUpperCase()] || {};
+      const gross = num(data.gross);
+      const rej = num(data.reject);
+      const bo = num(data.bo);
+      const net = num(data.net);
+      total.gross += gross;
+      total.reject += rej;
+      total.bo += bo;
+      total.net += net;
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${name}</td><td>${fmt(gross)}</td><td>${fmt(rej)}</td><td>${fmt(bo)}</td><td>${fmt(net)}</td><td>-</td><td>-</td><td>-</td>`;
+      tbody.insertBefore(tr, totalRow);
+    });
+
+    totalRow.innerHTML = `<td><strong>Total ${group}</strong></td><td>${fmt(total.gross)}</td><td>${fmt(total.reject)}</td><td>${fmt(total.bo)}</td><td>${fmt(total.net)}</td><td>-</td><td>-</td><td>-</td>`;
+  }
+
+  console.log("✅ FS Tables updated successfully");
+}
+
+/* -----------------------------------------------------------
+   🕒 INITIAL LOAD + AUTO REFRESH
+----------------------------------------------------------- */
+computeKM6Dashboard();
+
 window.addEventListener("storage", (e) => {
-  if (["dataweb", "pnetinv", "invoicedate"].includes(e.key)) {
-    computeDashboardFromUploads();
+  if (["dataweb", "pnetinv", "invoicedate", "fsTotals"].includes(e.key)) {
+    computeKM6Dashboard();
   }
 });
-
-// Run once on load (if files already uploaded)
-computeDashboardFromUploads();
 </script>
 
 </body>
