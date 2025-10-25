@@ -5,457 +5,537 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>KM6 Sales Dashboard</title>
   <link rel="stylesheet" href="style.css" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    /* ===== Dropdown Menu Styling (kept) ===== */
-    .menu-container { position: relative; display: inline-block; }
-    .menu-icon { cursor: pointer; font-size: 24px; user-select: none; }
-    .dropdown-menu {
-      display: none; position: absolute; right: 0; background-color: #ffffff;
-      min-width: 180px; box-shadow: 0 8px 16px rgba(0,0,0,0.2); border-radius: 8px;
-      z-index: 999; overflow: hidden; animation: fadeIn 0.2s ease-in-out;
-    }
-    .dropdown-menu a {
-      display: flex; align-items: center; gap: 8px; color: #333;
-      padding: 10px 16px; text-decoration: none; font-size: 15px; transition: background 0.2s;
-    }
-    .dropdown-menu a:hover { background-color: #f0f0f0; }
-    @keyframes fadeIn { from {opacity: 0; transform: translateY(-5px);} to {opacity: 1; transform: translateY(0);} }
-
-    /* ✅ Mobile Responsive Tables */
-    .table-container { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    table { width: 100%; border-collapse: collapse; min-width: 600px; }
-    th, td { text-align: left; padding: 8px; white-space: nowrap; }
-    .negative { color: red; }
-    .up { color: #00843d; font-weight: 700; }
-    .down { color: #c62828; font-weight: 700; }
-    .total td { background: #eef8e9; font-weight: 700; }
-    .summary h2 .date { color: #d32f2f; }
+    body{font-family:Arial,Helvetica,sans-serif;background:#f8f9fa;margin:0}
+    header{background:#fdb913;color:#111;padding:14px 22px;display:flex;align-items:center;justify-content:space-between}
+    .logo h1{font-size:18px;margin:0}
+    .header-right h2{display:inline-block;margin:0 12px;font-size:16px}
+    .header-right a{color:#111;text-decoration:none}
+    .menu-container{position:relative;display:inline-block;margin-left:6px}
+    .menu-icon{font-size:22px;cursor:pointer;user-select:none}
+    .dropdown-menu{display:none;position:absolute;right:0;top:28px;background:#fff;width:210px;border-radius:10px;box-shadow:0 8px 18px rgba(0,0,0,.15);overflow:hidden;z-index:999}
+    .dropdown-menu a{display:flex;gap:8px;align-items:center;padding:11px 14px;color:#222;text-decoration:none}
+    .dropdown-menu a:hover{background:#f3f4f6}
+    h2{color:#00843d;text-align:center;margin:18px 0}
+    .summary h2 .date{color:#d32f2f}
+    .info{text-align:center}
+    .compare-section{width:95%;max-width:1100px;margin:18px auto 8px}
+    .compare-cards{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+    .card{background:#fff;border-radius:12px;box-shadow:0 2px 6px rgba(0,0,0,.08);padding:18px 18px 16px;width:300px;text-align:center}
+    .card h3{color:#00843d;margin:0 0 10px}
+    .up{color:#00843d;font-weight:700}
+    .down{color:#c62828;font-weight:700}
+    .updated-time{font-size:.9em;color:#555;text-align:center;margin:6px 0 0}
+    .table-section,.table-group{width:95%;max-width:1300px;margin:18px auto}
+    .table-group h2{display:flex;align-items:center;gap:8px}
+    .table-container{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+    table{width:100%;border-collapse:collapse;min-width:900px}
+    th,td{padding:10px 8px;text-align:left;white-space:nowrap}
+    th{background:#00843d;color:#fff}
+    .total td{background:#eef8e9;font-weight:700}
   </style>
 </head>
 <body>
+  <!-- Header -->
   <header class="header">
-    <div class="logo">
-      <img src="your-logo.png" alt="KM6 Logo" />
-      <h1>GENERAL MERCHANDISE</h1>
-    </div>
+    <div class="logo"><h1>KM6 General Merchandise</h1></div>
     <div class="header-right">
-      <h2><a href="#" class="nav-link" id="totalSalesLink">Total Sales</a></h2>
-      <h2><a href="#" class="nav-link" id="dspSalesLink">DSP-Sales</a></h2>
-      <h2><a href="#" class="nav-link" id="focus30Link">Focus 30</a></h2>
+      <h2><a href="#" id="totalSalesLink">Total Sales</a></h2>
+      <h2><a href="#" id="dspSalesLink">DSP-Sales</a></h2>
+      <h2><a href="#" id="focus30Link">Focus 30</a></h2>
 
+      <!-- Ordered Menu: Settings → Upload → Logout -->
       <div class="menu-container">
         <div class="menu-icon">☰</div>
         <div class="dropdown-menu" id="dropdownMenu">
-          <a href="logout.html">🔒 Log Out</a>
-          <a href="https://chadd-cod07.github.io/km6-login/km6-dashboard/upload.html">⬆️ Upload Excel File</a>
           <a href="settings.html">⚙️ Settings</a>
+          <a href="upload.html">🟦 Upload Excel File</a>
+          <a href="logout.html" id="logoutLink">🔒 Log Out</a>
         </div>
       </div>
     </div>
   </header>
 
+  <!-- KPIs -->
   <section class="summary">
-    <h2>Daily Sales as of <span class="date">Mon Oct 20, 2025</span></h2>
+    <h2>Daily Sales as of <span class="date">--</span></h2>
     <div class="info">
-      <p><strong>Selling Days:</strong> <span id="sellingDays">0</span></p>
-      <p><strong>Actual Days:</strong> <span id="actualDays">0</span></p>
-      <p><strong>Progress:</strong> <span id="progressPct">0%</span></p>
-      <p><strong>Remaining Days:</strong> <span id="remainingDays">0</span></p>
+      <p>
+        <strong>Selling Days:</strong> <span id="sellingDays">0</span> &nbsp;|&nbsp;
+        <strong>Actual Days:</strong> <span id="actualDays">0</span> &nbsp;|&nbsp;
+        <strong>Progress:</strong> <span id="progressPct">0%</span> &nbsp;|&nbsp;
+        <strong>Remaining Days:</strong> <span id="remainingDays">0</span>
+      </p>
     </div>
   </section>
 
-  <!-- Daily Sales Current vs Previous (kept; values will remain as-is for now) -->
+  <!-- Daily Sales Current vs Previous -->
   <section class="compare-section">
     <h2>Daily Sales Current vs Previous</h2>
     <div class="compare-cards">
-      <div class="card total">
+      <div class="card">
         <h3>Total KM6</h3>
-        <p><strong>Previous Sales:</strong> 5,972,244.39</p>
-        <p><strong>Current Sales:</strong> 2,428,661.17</p>
-        <p class="down">▼ 42.18%</p>
+        <p><strong>Previous Sales:</strong> <span id="prevKM6">-</span></p>
+        <p><strong>Current Sales:</strong> <span id="currKM6">-</span></p>
+        <p id="changeKM6">-</p>
       </div>
-      <div class="card baguio">
+      <div class="card">
         <h3>Total Baguio</h3>
-        <p><strong>Previous Sales:</strong> 4,234,112.52</p>
-        <p><strong>Current Sales:</strong> 517,089.66</p>
-        <p class="down">▼ 78.23%</p>
+        <p><strong>Previous Sales:</strong> <span id="prevBaguio">-</span></p>
+        <p><strong>Current Sales:</strong> <span id="currBaguio">-</span></p>
+        <p id="changeBaguio">-</p>
       </div>
-      <div class="card launion">
+      <div class="card">
         <h3>Total La Union</h3>
-        <p><strong>Previous Sales:</strong> 1,738,131.87</p>
-        <p><strong>Current Sales:</strong> 1,911,571.51</p>
-        <p class="up">▲ 4.75%</p>
+        <p><strong>Previous Sales:</strong> <span id="prevLU">-</span></p>
+        <p><strong>Current Sales:</strong> <span id="currLU">-</span></p>
+        <p id="changeLU">-</p>
       </div>
     </div>
   </section>
-<p class="updated-time" id="lastUpdated" style="font-size:.9em;color:#555;margin-top:6px;">
-  Last updated: --
-</p>
-  <!-- Branch Table -->
+
+  <p class="updated-time" id="lastUpdated">Last updated: --</p>
+
+  <!-- Branch Summary -->
   <section class="table-section">
     <h2>Branch Summary</h2>
     <div class="table-container">
       <table>
         <thead>
           <tr>
-            <th>Branch</th>
-            <th>Gross</th>
-            <th>Rejection</th>
-            <th>B.O Amount</th>
-            <th>Net Sales</th>
-            <th>Target</th>
-            <th>%</th>
-            <th>Balance</th>
+            <th>Branch</th><th>Gross</th><th>Rejection</th><th>B.O Amount</th><th>Net Sales</th>
+            <th>Target</th><th>%</th><th>Balance</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody id="branchSummary">
           <tr>
-            <td>Baguio</td>
-            <td id="km6Gross">-</td>
-            <td id="km6Reject">-</td>
-            <td id="km6BO">-</td>
-            <td id="km6Net">-</td>
-            <td>91,127,709.64</td>
-            <td>-</td>
-            <td>-</td>
+            <td>Baguio</td><td id="km6Gross">-</td><td id="km6Reject">-</td><td id="km6BO">-</td><td id="km6Net">-</td>
+            <td id="km6Target">-</td><td id="km6Pct">-</td><td id="km6Bal">-</td>
           </tr>
           <tr>
-            <td>La Union</td>
-            <td id="kmlGross">-</td>
-            <td id="kmlReject">-</td>
-            <td id="kmlBO">-</td>
-            <td id="kmlNet">-</td>
-            <td>47,136,762.36</td>
-            <td>-</td>
-            <td>-</td>
+            <td>La Union</td><td id="kmlGross">-</td><td id="kmlReject">-</td><td id="kmlBO">-</td><td id="kmlNet">-</td>
+            <td id="kmlTarget">-</td><td id="kmlPct">-</td><td id="kmlBal">-</td>
           </tr>
           <tr class="total">
             <td><strong>Total KM6</strong></td>
-            <td>-</td><td>-</td><td>1,950,073.85</td><td>-</td>
-            <td>138,264,472.00</td>
-            <td>-</td><td>-</td>
+            <td id="totGross">-</td><td id="totReject">-</td><td id="totBO">-</td><td id="totNet">-</td>
+            <td id="totTarget">-</td><td id="totPct">-</td><td id="totBal">-</td>
           </tr>
         </tbody>
       </table>
     </div>
   </section>
-  <!-- KCM Table -->
+
+  <!-- FS: Total KCM -->
   <section class="table-group">
-    <h2>Total KCM</h2>
+    <h2><span style="color:#f0b400">│</span> Total KCM</h2>
     <div class="table-container">
       <table>
         <thead>
-          <tr>
-            <th>KCM</th>
-            <th>Gross</th>
-            <th>Rejection</th>
-            <th>B.O Amount</th>
-            <th>Net Sales</th>
-            <th>Target</th>
-            <th>%</th>
-            <th>Balance</th>
-          </tr>
+          <tr><th>KCM</th><th>Gross</th><th>Rejection</th><th>B.O AMOUNT</th><th>Net Sales</th><th>Target</th><th>%</th><th>Balance</th></tr>
         </thead>
-        <tbody>
-          <tr>
-            <td>Jim Russel Peralta</td>
-            <td>-</td><td>-</td><td>-</td><td>-</td>
-            <td>15,071,696.63</td><td>-</td><td>-</td>
-          </tr>
-          <tr>
-            <td>Judy Ann Mabanta</td>
-            <td>-</td><td>-</td><td>-</td><td>-</td>
-            <td>4,367,754.61</td><td>-</td><td>-</td>
-          </tr>
-          <tr>
-            <td>Gilbert Aquino</td>
-            <td>-</td><td>-</td><td>-</td><td>-</td>
-            <td>37,611,090.41</td><td>-</td><td>-</td>
-          </tr>
-          <tr>
-            <td>Roderick Dacay</td>
-            <td>-</td><td>-</td><td>-</td><td>-</td>
-            <td>17,302,603.09</td><td>-</td><td>-</td>
-          </tr>
-          <tr>
-            <td>Gyver Gano</td>
-            <td>-</td><td>-</td><td>-</td><td>-</td>
-            <td>3,760,520.90</td><td>-</td><td>-</td>
-          </tr>
-          <tr class="total">
-            <td><strong>Total KCM</strong></td>
-            <td>-</td><td>-</td><td>-</td><td>-</td>
-            <td>78,114,214.71</td><td>-</td><td>-</td>
-          </tr>
+        <tbody id="tblKCM">
+          <tr><td>Jim Russel Peralta</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
+          <tr><td>Judy Ann Mabanta</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
+          <tr><td>Gilbert Aquino</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
+          <tr><td>Roderick Dacay</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
+          <tr><td>Gyver Gano</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
+          <tr class="total"><td><strong>Total KCM</strong></td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
         </tbody>
       </table>
     </div>
   </section>
 
-  <!-- Tertiary La Union -->
+  <!-- FS: Tertiary La Union (KML) -->
   <section class="table-group">
-    <h2>Tertiary LU</h2>
+    <h2 style="color:#b71c1c">Tertiary La Union (KML)</h2>
     <div class="table-container">
       <table>
         <thead>
-          <tr>
-            <th>Name</th>
-            <th>Gross</th>
-            <th>Rejection</th>
-            <th>B.O Amount</th>
-            <th>Net Sales</th>
-            <th>Target</th>
-            <th>%</th>
-            <th>Balance</th>
-          </tr>
+          <tr><th>Name</th><th>Gross</th><th>Rejection</th><th>B.O AMOUNT</th><th>Net Sales</th><th>Target</th><th>%</th><th>Balance</th></tr>
         </thead>
-        <tbody>
-          <tr>
-            <td>Gemma Jacaban</td>
-            <td>-</td><td>-</td><td>-</td><td>-</td>
-            <td>4,075,946.99</td><td>-</td><td>-</td>
-          </tr>
-          <tr>
-            <td>Jovelyn Castro</td>
-            <td>-</td><td>-</td><td>-</td><td>-</td>
-            <td>20,177,154.31</td><td>-</td><td>-</td>
-          </tr>
-          <tr class="total">
-            <td><strong>Total LU</strong></td>
-            <td>-</td><td>-</td><td>-</td><td>-</td>
-            <td>24,253,698.33</td><td>-</td><td>-</td>
-          </tr>
+        <tbody id="tblLU">
+          <tr><td>Gemma Jacaban</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
+          <tr><td>Jovelyn Castro</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
+          <tr class="total"><td><strong>Total LU</strong></td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
         </tbody>
       </table>
     </div>
   </section>
 
-  <!-- Tertiary Baguio -->
+  <!-- FS: Tertiary Baguio (KM6) -->
   <section class="table-group">
-    <h2>Tertiary Baguio</h2>
+    <h2><span style="color:#f0b400">│</span> Tertiary Baguio (KM6)</h2>
     <div class="table-container">
       <table>
         <thead>
-          <tr>
-            <th>Name</th>
-            <th>Gross</th>
-            <th>Rejection</th>
-            <th>B.O Amount</th>
-            <th>Net Sales</th>
-            <th>Target</th>
-            <th>%</th>
-            <th>Balance</th>
-          </tr>
+          <tr><th>Name</th><th>Gross</th><th>Rejection</th><th>B.O AMOUNT</th><th>Net Sales</th><th>Target</th><th>%</th><th>Balance</th></tr>
         </thead>
-        <tbody>
-          <tr>
-            <td>Jehu Romero</td>
-            <td>-</td><td>-</td><td>-</td><td>-</td>
-            <td>14,978,896.84</td><td>-</td><td>-</td>
-          </tr>
-          <tr>
-            <td>MC ARDEL CACHICHO</td>
-            <td>-</td><td>-</td><td>-</td><td>-</td>
-            <td>6,231,106.82</td><td>-</td><td>-</td>
-          </tr>
-          <tr>
-            <td>Rocky Fowaya</td>
-            <td>-</td><td>-</td><td>-</td><td>-</td>
-            <td>14,687,157.84</td><td>-</td><td>-</td>
-          </tr>
-          <tr class="total">
-            <td><strong>Total Baguio</strong></td>
-            <td>-</td><td>-</td><td>-</td><td>-</td>
-            <td>35,896,558.97</td><td>-</td><td>-</td>
-          </tr>
+        <tbody id="tblBG">
+          <tr><td>Jehu Romero</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
+          <tr><td>MC ARDEL CACHICHO</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
+          <tr><td>Rocky Fowaya</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
+          <tr class="total"><td><strong>Total Baguio</strong></td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
         </tbody>
       </table>
     </div>
   </section>
 
- <!-- ===== Dropdown + Dashboard Update Script (Fixed & Cleaned) ===== -->
-<script>
-  // ---------- Helpers ----------
-  const fmt = (n) => (isFinite(n) ? Number(n) : 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 3 });
-  const num = (txt) => parseFloat(String(txt || "").replace(/,/g, "")) || 0;
-  const setCellText = (cell, value) => { if (cell) cell.textContent = fmt(value); };
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore-compat.js"></script>
+  <script>
+    // --- Firebase init ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyCStpCWdRO770N4SpH3GKYwp9pg1kP6_O4",
+      authDomain: "km6-dashboard.firebaseapp.com",
+      projectId: "km6-dashboard",
+      storageBucket: "km6-dashboard.appspot.com",
+      messagingSenderId: "309068846407",
+      appId: "1:309068846407:web:68d51a21f6ab238fa1a862",
+    };
+    if (firebase.apps.length === 0) firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
 
-  // ---------- Dropdown ----------
-  const menuIcon = document.querySelector(".menu-icon");
-  const dropdownMenu = document.getElementById("dropdownMenu");
-  menuIcon.addEventListener("click", () => {
-    dropdownMenu.style.display = dropdownMenu.style.display === "block" ? "none" : "block";
-  });
-  window.addEventListener("click", (e) => {
-    if (!e.target.closest(".menu-container")) dropdownMenu.style.display = "none";
-  });
+    // --- Helpers ---
+    const fmt = n => Number(n||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+    const num = t => parseFloat(String(t||"").replace(/[^0-9.-]/g,""))||0;
+    const up = el => (el.className="up",el);
+    const down = el => (el.className="down",el);
+    const U = s => String(s||"").trim().toUpperCase();
 
-  // ---------- Nav placeholders ----------
-  document.getElementById("totalSalesLink").addEventListener("click", () => alert("Total Sales page coming soon!"));
-  document.getElementById("dspSalesLink").addEventListener("click", () => alert("DSP-Sales page coming soon!"));
-  document.getElementById("focus30Link").addEventListener("click", () => alert("Focus 30 page coming soon!"));
+    // --- Menu behaviour (ordered) ---
+    const menuIcon = document.querySelector(".menu-icon");
+    const dropdownMenu = document.getElementById("dropdownMenu");
+    menuIcon.addEventListener("click",()=>dropdownMenu.style.display=dropdownMenu.style.display==="block"?"none":"block");
+    window.addEventListener("click",e=>{if(!e.target.closest(".menu-container")) dropdownMenu.style.display="none"});
 
-  // ---------- Logout Redirect ----------
-  const logoutLink = document.querySelector('.dropdown-menu a[href="logout.html"]');
-  if (logoutLink) {
-    logoutLink.addEventListener("click", (event) => {
-      event.preventDefault();
-      window.location.href = "https://chadd-cod07.github.io/km6-login/";
+    // Optional: logout redirect
+    const logoutLink = document.getElementById("logoutLink");
+    if (logoutLink) logoutLink.addEventListener("click",(e)=>{ e.preventDefault(); window.location.href="https://chadd-cod07.github.io/km6-login/"; });
+
+    // --- Date KPIs ---
+    (function updateKPIs(){
+      const now=new Date();
+      document.querySelector(".summary .date").textContent = now.toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric",year:"numeric"});
+      const sellingDays=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
+      const actual=now.getDate();
+      document.getElementById("sellingDays").textContent=sellingDays;
+      document.getElementById("actualDays").textContent=actual;
+      document.getElementById("progressPct").textContent=Math.round(actual/sellingDays*100)+"%";
+      document.getElementById("remainingDays").textContent=sellingDays-actual;
+    })();
+
+    // --- State (also backed by localStorage)
+    let totals = JSON.parse(localStorage.getItem("dashboardTotals")||"{}");
+    let fsTotals = JSON.parse(localStorage.getItem("fsTotals")||"{}");
+    let targets = JSON.parse(localStorage.getItem("targets")||"{}");
+    let invoice = JSON.parse(localStorage.getItem("invoiceDateData")||"{}");
+
+    const setStamp = () => { const s=document.getElementById("lastUpdated"); if(s) s.textContent="Last updated: "+new Date().toLocaleString(); };
+
+    // --- Branch Summary render
+    function renderBranchSummary(){
+      if(!totals?.KM6 || !totals?.KML) return;
+
+      // Baguio (KM6)
+      const km6 = totals.KM6;
+      document.getElementById("km6Gross").textContent = fmt(km6.gross);
+      document.getElementById("km6Reject").textContent = fmt(km6.reject);
+      document.getElementById("km6BO").textContent = fmt(km6.bo);
+      document.getElementById("km6Net").textContent = fmt(km6.net);
+      const tKM6 = targets?.branches?.["KM6"] || targets?.branches?.["BAGUIO"] || 0;
+      document.getElementById("km6Target").textContent = fmt(tKM6);
+      document.getElementById("km6Pct").textContent = tKM6 ? ((km6.net/tKM6)*100).toFixed(2)+"%" : "-";
+      const bal6 = km6.net - tKM6;
+      document.getElementById("km6Bal").textContent = (bal6<0?"(":"")+fmt(Math.abs(bal6))+(bal6<0?")":"");
+      document.getElementById("km6Bal").style.color = bal6<0?"red":"green";
+
+      // La Union (KML)
+      const kml = totals.KML;
+      document.getElementById("kmlGross").textContent = fmt(kml.gross);
+      document.getElementById("kmlReject").textContent = fmt(kml.reject);
+      document.getElementById("kmlBO").textContent = fmt(kml.bo);
+      document.getElementById("kmlNet").textContent = fmt(kml.net);
+      const tKML = targets?.branches?.["KML"] || targets?.branches?.["LA UNION"] || 0;
+      document.getElementById("kmlTarget").textContent = fmt(tKML);
+      document.getElementById("kmlPct").textContent = tKML ? ((kml.net/tKML)*100).toFixed(2)+"%" : "-";
+      const balL = kml.net - tKML;
+      document.getElementById("kmlBal").textContent = (balL<0?"(":"")+fmt(Math.abs(balL))+(balL<0?")":"");
+      document.getElementById("kmlBal").style.color = balL<0?"red":"green";
+
+      // TOTAL KM6 (KM6 + KML)
+      const gT = (km6.gross||0)+(kml.gross||0);
+      const rT = (km6.reject||0)+(kml.reject||0);
+      const bT = (km6.bo||0)+(kml.bo||0);
+      const nT = (km6.net||0)+(kml.net||0);
+      document.getElementById("totGross").textContent = fmt(gT);
+      document.getElementById("totReject").textContent = fmt(rT);
+      document.getElementById("totBO").textContent = fmt(bT);
+      document.getElementById("totNet").textContent = fmt(nT);
+      const tTOT = targets?.branches?.["TOTAL KM6"] || (tKM6 + tKML) || 0;
+      document.getElementById("totTarget").textContent = fmt(tTOT);
+      document.getElementById("totPct").textContent = tTOT ? ((nT/tTOT)*100).toFixed(2)+"%" : "-";
+      const balT = nT - tTOT;
+      document.getElementById("totBal").textContent = (balT<0?"(":"")+fmt(Math.abs(balT))+(balT<0?")":"");
+      document.getElementById("totBal").style.color = balT<0?"red":"green";
+    }
+
+    // --- FS Table render helper
+    function renderFsTable(tbodyId, names){
+      const tbody = document.getElementById(tbodyId);
+      if(!tbody) return;
+      // Fill rows
+      [...tbody.querySelectorAll("tr")].forEach(tr=>{
+        const nameCell = tr.cells?.[0]; if(!nameCell) return;
+        const label = U(nameCell.innerText);
+        if (label.startsWith("TOTAL")) return; // skip total row here
+        const fs = fsTotals[ label ];
+        const tVal = targets?.fs?.[ label ] || 0;
+
+        // write metrics
+        if (fs){
+          tr.cells[1].textContent = fmt(fs.gross||0);
+          tr.cells[2].textContent = fmt(fs.reject||0);
+          tr.cells[3].textContent = fmt(fs.bo||0);
+          tr.cells[4].textContent = fmt(fs.net||0);
+        } else {
+          tr.cells[1].textContent = tr.cells[2].textContent = tr.cells[3].textContent = tr.cells[4].textContent = fmt(0);
+        }
+        tr.cells[5].textContent = fmt(tVal);
+        const pct = tVal ? (((fs?.net||0)/tVal)*100).toFixed(2)+"%" : "-";
+        tr.cells[6].textContent = pct;
+        const bal = (fs?.net||0) - tVal;
+        tr.cells[7].textContent = (bal<0?"(":"")+fmt(Math.abs(bal))+(bal<0?")":"");
+        tr.cells[7].style.color = bal<0?"red":"green";
+      });
+
+      // Recompute TOTAL row
+      let g=0,r=0,b=0,n=0; let totalRow=null;
+      [...tbody.querySelectorAll("tr")].forEach(tr=>{
+        const label = U(tr.cells?.[0]?.innerText);
+        if(!label) return;
+        if(label.startsWith("TOTAL")) { totalRow = tr; return; }
+        g += num(tr.cells[1]?.innerText);
+        r += num(tr.cells[2]?.innerText);
+        b += num(tr.cells[3]?.innerText);
+        n += num(tr.cells[4]?.innerText);
+      });
+      if(totalRow){
+        totalRow.cells[1].textContent = fmt(g);
+        totalRow.cells[2].textContent = fmt(r);
+        totalRow.cells[3].textContent = fmt(b);
+        totalRow.cells[4].textContent = fmt(n);
+        // Targets for TOTAL rows are not usually defined per group; keep dashes:
+        totalRow.cells[5].textContent = "-";
+        totalRow.cells[6].textContent = "-";
+        totalRow.cells[7].textContent = fmt(n);
+        totalRow.cells[7].style.color = "green";
+      }
+    }
+
+    // --- Daily Cards (from invoiceDate)
+    function renderDailyCards(){
+      if(!invoice?.current || !invoice?.previous) return;
+      const currKM6 = (invoice.current.KM6||0), currKML = (invoice.current.KML||0);
+      const prevKM6 = (invoice.previous.KM6||0), prevKML = (invoice.previous.KML||0);
+      const set = (idPrev,idCurr,idChange,prev,curr)=>{
+        document.getElementById(idPrev).textContent = fmt(prev);
+        document.getElementById(idCurr).textContent = fmt(curr);
+        const ch = document.getElementById(idChange);
+        const pct = prev ? ((curr-prev)/prev*100).toFixed(2) : 0;
+        ch.textContent = (pct>=0?`▲ ${pct}%`:`▼ ${Math.abs(pct)}%`);
+        ch.className = pct>=0?"up":"down";
+      };
+      set("prevKM6","currKM6","changeKM6", prevKM6+prevKML, currKM6+currKML);
+      set("prevBaguio","currBaguio","changeBaguio", prevKM6, currKM6);
+      set("prevLU","currLU","changeLU", prevKML, currKML);
+    }
+
+    // --- Live listeners (and cache)
+    db.collection("km6_dashboard_data").doc("dashboardTotals").onSnapshot(s=>{
+      if(!s.exists) return;
+      totals = s.data(); localStorage.setItem("dashboardTotals",JSON.stringify(totals));
+      renderBranchSummary(); setStamp();
     });
+    db.collection("km6_dashboard_data").doc("fsTotals").onSnapshot(s=>{
+      if(!s.exists) return;
+      fsTotals = normalizeFsKeys(s.data()); // normalize keys to UPPER
+      localStorage.setItem("fsTotals", JSON.stringify(fsTotals));
+      renderFsTable("tblKCM");
+      renderFsTable("tblLU");
+      renderFsTable("tblBG");
+      setStamp();
+    });
+    db.collection("km6_dashboard_data").doc("targets").onSnapshot(s=>{
+      if(!s.exists) return;
+      const raw = s.data()||{};
+      targets = {
+        branches: mapUpper(raw.branches||{}),
+        fs: mapUpper(raw.fs||{})
+      };
+      localStorage.setItem("targets", JSON.stringify(targets));
+      renderBranchSummary();
+      renderFsTable("tblKCM"); renderFsTable("tblLU"); renderFsTable("tblBG");
+      setStamp();
+    });
+    db.collection("km6_dashboard_data").doc("invoiceDate").onSnapshot(s=>{
+      if(!s.exists) return;
+      invoice = s.data(); localStorage.setItem("invoiceDateData", JSON.stringify(invoice));
+      renderDailyCards(); setStamp();
+    });
+
+    // --- Bootstrap from cache on first load
+    function mapUpper(obj){ const out={}; for(const k in obj) out[U(k)]=obj[k]; return out; }
+    function normalizeFsKeys(obj){ const out={}; for(const k in obj){ out[U(k)] = obj[k]; } return out; }
+
+    (function boot(){
+      totals && renderBranchSummary();
+      fsTotals = normalizeFsKeys(fsTotals||{});
+      renderFsTable("tblKCM"); renderFsTable("tblLU"); renderFsTable("tblBG");
+      targets = { branches: mapUpper(targets.branches||{}), fs: mapUpper(targets.fs||{}) };
+      renderBranchSummary();
+      renderDailyCards();
+      setStamp();
+    })();
+  </script>
+ <script>
+// =====================================================
+// ✅ FIXED AUTO COMPUTATION (Reflects Uploaded Data)
+// =====================================================
+
+// Helper functions (reuse safe versions)
+const fmt2 = n => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const num2 = v => parseFloat(String(v || "0").replace(/[^0-9.-]/g, "")) || 0;
+
+// Main refresh function
+function computeDashboardFromUploads() {
+  const dataweb = JSON.parse(localStorage.getItem("dataweb") || "[]");
+  const pnetinv = JSON.parse(localStorage.getItem("pnetinv") || "[]");
+  const invoicedate = JSON.parse(localStorage.getItem("invoicedate") || "[]");
+
+  if (dataweb.length === 0 && pnetinv.length === 0) {
+    console.log("No uploaded Excel data found yet.");
+    return;
   }
 
-  // ---------- Date & Day KPIs ----------
-  function updateDayKPIs() {
-    const now = new Date();
-    const dateStr = now.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
-    document.querySelector(".summary .date").textContent = dateStr;
+  console.log("Recomputing dashboard from uploaded Excel data...");
 
-    const sellingDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    const actualDays = now.getDate();
-    const progress = Math.round((actualDays / sellingDays) * 100);
-    const remaining = Math.max(0, sellingDays - actualDays);
-
-    document.getElementById("sellingDays").textContent = sellingDays;
-    document.getElementById("actualDays").textContent = actualDays;
-    document.getElementById("progressPct").textContent = `${progress}%`;
-    document.getElementById("remainingDays").textContent = remaining;
-  }
-
-  updateDayKPIs();
-</script>
-
-<!-- ===== Firebase Live Sync (Fixed Single Instance) ===== -->
-<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore-compat.js"></script>
-<script>
-  // === Firebase init ===
-  const firebaseConfig = {
-    apiKey: "AIzaSyCStpCWdRO770N4SpH3GKYwp9pg1kP6_O4",
-    authDomain: "km6-dashboard.firebaseapp.com",
-    projectId: "km6-dashboard",
-    storageBucket: "km6-dashboard.appspot.com",
-    messagingSenderId: "309068846407",
-    appId: "1:309068846407:web:68d51a21f6ab238fa1a862"
+  // --- Totals per branch ---
+  let totals = {
+    KM6: { gross: 0, reject: 0, bo: 0, net: 0, target: 0 },
+    KML: { gross: 0, reject: 0, bo: 0, net: 0, target: 0 },
   };
 
-  if (firebase.apps.length === 0) firebase.initializeApp(firebaseConfig);
-  const db = firebase.firestore();
+  // Gross + Target
+  dataweb.forEach(r => {
+    const branch = (r["Branch Name"] || "").toUpperCase().trim();
+    const gross = num2(r["Sum of Order Amount"]);
+    if (branch === "KM6") totals.KM6.gross += gross;
+    if (branch === "KML") totals.KML.gross += gross;
+  });
+  totals.KM6.target = totals.KM6.gross;
+  totals.KML.target = totals.KML.gross;
 
-  const fmtNum = (n) => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const numVal = (txt) => parseFloat(String(txt || "").replace(/,/g, "")) || 0;
-  const safeSet = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = fmtNum(val); };
-
-  // === Live listener for Totals ===
-  db.collection("km6_dashboard_data").doc("dashboardTotals").onSnapshot((snap) => {
-    if (!snap.exists) return console.warn("No dashboardTotals found in Firebase.");
-    const totals = snap.data();
-    console.log("✅ Totals (live):", totals);
-
-    localStorage.setItem("dashboardTotals", JSON.stringify(totals));
-
-    // Update branch summary cells
-    safeSet("km6Gross", totals.KM6?.gross);
-    safeSet("km6Reject", totals.KM6?.reject);
-    safeSet("km6BO", totals.KM6?.bo);
-    safeSet("km6Net", totals.KM6?.net);
-    safeSet("kmlGross", totals.KML?.gross);
-    safeSet("kmlReject", totals.KML?.reject);
-    safeSet("kmlBO", totals.KML?.bo);
-    safeSet("kmlNet", totals.KML?.net);
-
-    // Recompute % and Balance
-    const rows = document.querySelectorAll("section.table-section table tbody tr");
-    let km6Net = 0, kmlNet = 0;
-    rows.forEach((row) => {
-      const label = row.cells[0]?.innerText.trim().toUpperCase();
-      if (!label) return;
-
-      if (label.includes("BAGUIO") || label.includes("KM6")) {
-        const target = numVal(row.cells[5]?.innerText);
-        const net = totals.KM6?.net || 0;
-        km6Net = net;
-        row.cells[6].textContent = target ? (net / target * 100).toFixed(2) + "%" : "-";
-        const bal = net - target;
-        row.cells[7].textContent = (bal < 0 ? "(" : "") + fmtNum(Math.abs(bal)) + (bal < 0 ? ")" : "");
-        row.cells[7].style.color = bal < 0 ? "red" : "green";
-      }
-
-      if (label.includes("LA UNION") || label.includes("KML")) {
-        const target = numVal(row.cells[5]?.innerText);
-        const net = totals.KML?.net || 0;
-        kmlNet = net;
-        row.cells[6].textContent = target ? (net / target * 100).toFixed(2) + "%" : "-";
-        const bal = net - target;
-        row.cells[7].textContent = (bal < 0 ? "(" : "") + fmtNum(Math.abs(bal)) + (bal < 0 ? ")" : "");
-        row.cells[7].style.color = bal < 0 ? "red" : "green";
-      }
-
-      if (label.includes("TOTAL KM6")) {
-        const netTotal = km6Net + kmlNet;
-        if (row.cells[4]) row.cells[4].textContent = fmtNum(netTotal);
-        const target = numVal(row.cells[5]?.innerText);
-        row.cells[6].textContent = target ? (netTotal / target * 100).toFixed(2) + "%" : "-";
-        const bal = netTotal - target;
-        row.cells[7].textContent = (bal < 0 ? "(" : "") + fmtNum(Math.abs(bal)) + (bal < 0 ? ")" : "");
-        row.cells[7].style.color = bal < 0 ? "red" : "green";
-      }
-    });
-
-    const stamp = document.getElementById("lastUpdated");
-    if (stamp) stamp.textContent = "Last updated: " + new Date().toLocaleString();
+  // Rejection + BO + Net
+  pnetinv.forEach(r => {
+    const branch = (r["Branch Name"] || "").toUpperCase().trim();
+    const rej = num2(r["TOTAL REJECTION"]);
+    const bo = num2(r["TOTAL BO"]);
+    const net = num2(r["TOTAL NET"]);
+    if (branch === "KM6") {
+      totals.KM6.reject += rej;
+      totals.KM6.bo += bo;
+      totals.KM6.net += net;
+    } else if (branch === "KML") {
+      totals.KML.reject += rej;
+      totals.KML.bo += bo;
+      totals.KML.net += net;
+    }
   });
 
-  // === Live listener for FS Totals ===
-  db.collection("km6_dashboard_data").doc("fsTotals").onSnapshot((snap) => {
-    if (!snap.exists) return console.warn("No fsTotals found in Firebase.");
-    const fsTotals = snap.data();
-    console.log("✅ FS (live):", fsTotals);
-    localStorage.setItem("fsTotals", JSON.stringify(fsTotals));
+  // Combined Total KM6 (Baguio + La Union)
+  const totalGross = totals.KM6.gross + totals.KML.gross;
+  const totalRej = totals.KM6.reject + totals.KML.reject;
+  const totalBO = totals.KM6.bo + totals.KML.bo;
+  const totalNet = totals.KM6.net + totals.KML.net;
+  const totalTarget = totals.KM6.target + totals.KML.target;
 
-    document.querySelectorAll("section.table-group tbody tr").forEach((row) => {
-      const label = row.cells[0]?.innerText.trim().toUpperCase();
-      if (!label || label.startsWith("TOTAL")) return;
-      const fs = fsTotals[label];
-      if (!fs) return;
+  // --- Update Branch Summary ---
+  const upd = (id, val) => (document.getElementById(id).textContent = fmt2(val));
 
-      row.cells[1].textContent = fmtNum(fs.gross);
-      row.cells[2].textContent = fmtNum(fs.reject);
-      row.cells[3].textContent = fmtNum(fs.bo);
-      row.cells[4].textContent = fmtNum(fs.net);
+  upd("km6Gross", totals.KM6.gross);
+  upd("km6Reject", totals.KM6.reject);
+  upd("km6BO", totals.KM6.bo);
+  upd("km6Net", totals.KM6.net);
+  upd("km6Target", totals.KM6.target);
+  document.getElementById("km6Pct").textContent = totals.KM6.target
+    ? ((totals.KM6.net / totals.KM6.target) * 100).toFixed(2) + "%"
+    : "-";
+  upd("km6Bal", totals.KM6.target - totals.KM6.net);
 
-      const target = numVal(row.cells[5]?.innerText);
-      const bal = fs.net - target;
-      row.cells[6].textContent = target ? (fs.net / target * 100).toFixed(2) + "%" : "-";
-      row.cells[7].textContent = (bal < 0 ? "(" : "") + fmtNum(Math.abs(bal)) + (bal < 0 ? ")" : "");
-      row.cells[7].style.color = bal < 0 ? "red" : "green";
-    });
+  upd("kmlGross", totals.KML.gross);
+  upd("kmlReject", totals.KML.reject);
+  upd("kmlBO", totals.KML.bo);
+  upd("kmlNet", totals.KML.net);
+  upd("kmlTarget", totals.KML.target);
+  document.getElementById("kmlPct").textContent = totals.KML.target
+    ? ((totals.KML.net / totals.KML.target) * 100).toFixed(2) + "%"
+    : "-";
+  upd("kmlBal", totals.KML.target - totals.KML.net);
 
-    // Group total recompute
-    document.querySelectorAll("section.table-group").forEach((group) => {
-      const rows = group.querySelectorAll("tbody tr");
-      let g = 0, r = 0, b = 0, n = 0;
-      let totalRow = null;
-      rows.forEach((row) => {
-        const label = row.cells[0]?.innerText.trim().toUpperCase();
-        if (!label) return;
-        if (label.startsWith("TOTAL")) { totalRow = row; return; }
-        const fs = fsTotals[label];
-        if (fs) { g += fs.gross || 0; r += fs.reject || 0; b += fs.bo || 0; n += fs.net || 0; }
-      });
-      if (totalRow) {
-        totalRow.cells[1].textContent = fmtNum(g);
-        totalRow.cells[2].textContent = fmtNum(r);
-        totalRow.cells[3].textContent = fmtNum(b);
-        totalRow.cells[4].textContent = fmtNum(n);
-        const target = numVal(totalRow.cells[5]?.innerText);
-        totalRow.cells[6].textContent = target ? (n / target * 100).toFixed(2) + "%" : "-";
-        const bal = n - target;
-        totalRow.cells[7].textContent = (bal < 0 ? "(" : "") + fmtNum(Math.abs(bal)) + (bal < 0 ? ")" : "");
-        totalRow.cells[7].style.color = bal < 0 ? "red" : "green";
-      }
-    });
+  upd("totGross", totalGross);
+  upd("totReject", totalRej);
+  upd("totBO", totalBO);
+  upd("totNet", totalNet);
+  upd("totTarget", totalTarget);
+  document.getElementById("totPct").textContent = totalTarget
+    ? ((totalNet / totalTarget) * 100).toFixed(2) + "%"
+    : "-";
+  upd("totBal", totalTarget - totalNet);
+
+  // --- Daily Sales ---
+  if (invoicedate.length > 1) {
+    const last = invoicedate[invoicedate.length - 1];
+    const prev = invoicedate[invoicedate.length - 2];
+    const km6Curr = num2(last["KM6"]) + num2(last["KML"]);
+    const km6Prev = num2(prev["KM6"]) + num2(prev["KML"]);
+    const pct = km6Prev ? ((km6Curr - km6Prev) / km6Prev) * 100 : 0;
+
+    const updChange = (prevID, currID, changeID, prev, curr) => {
+      document.getElementById(prevID).textContent = fmt2(prev);
+      document.getElementById(currID).textContent = fmt2(curr);
+      const el = document.getElementById(changeID);
+      el.textContent = (pct >= 0 ? "▲ " : "▼ ") + Math.abs(pct).toFixed(2) + "%";
+      el.className = pct >= 0 ? "up" : "down";
+    };
+
+    updChange("prevKM6", "currKM6", "changeKM6", km6Prev, km6Curr);
+    updChange("prevBaguio", "currBaguio", "changeBaguio", num2(prev["KM6"]), num2(last["KM6"]));
+    updChange("prevLU", "currLU", "changeLU", num2(prev["KML"]), num2(last["KML"]));
+  }
+
+  // --- Save to Firebase ---
+  db.collection("km6_dashboard_data").doc("dashboardTotals").set({
+    KM6: { gross: totals.KM6.gross, reject: totals.KM6.reject, bo: totals.KM6.bo, net: totals.KM6.net },
+    KML: { gross: totals.KML.gross, reject: totals.KML.reject, bo: totals.KML.bo, net: totals.KML.net },
+    TOTAL: { gross: totalGross, reject: totalRej, bo: totalBO, net: totalNet },
+    updated: new Date().toLocaleString(),
   });
+
+  document.getElementById("lastUpdated").textContent = "Last updated: " + new Date().toLocaleString();
+  console.log("✅ Dashboard updated from uploaded Excel data.");
+}
+
+// Auto-run whenever localStorage changes (after upload)
+window.addEventListener("storage", (e) => {
+  if (["dataweb", "pnetinv", "invoicedate"].includes(e.key)) {
+    computeDashboardFromUploads();
+  }
+});
+
+// Run once on load (if files already uploaded)
+computeDashboardFromUploads();
 </script>
 
 </body>
