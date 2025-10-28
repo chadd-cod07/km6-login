@@ -84,7 +84,6 @@
   </div>
 
   <a class="back-btn" href="index.html">⬅ Go Back to Dashboard</a>
-
 <script>
   // --- Firebase Setup ---
   const firebaseConfig = {
@@ -102,37 +101,32 @@
   const num = t => parseFloat(String(t || "").replace(/[^0-9.-]/g, "")) || 0;
   const U = s => String(s || "").trim().toUpperCase();
 
-  // Helper: find sheet by partial name
+  // Helper to find sheet by partial name
   function findSheet(wb, name) {
     const key = wb.SheetNames.find(s => s.toLowerCase().includes(name.toLowerCase()));
     return key ? wb.Sheets[key] : null;
   }
 
-  // --- Upload Daily Sales (dataweb.xlsx) ---
+  // ================================================================
+  // ✅ Upload Daily Sales Data (dataweb.xlsx)
+  // ================================================================
   document.getElementById("uploadDaily").addEventListener("click", async () => {
     const file = document.getElementById("fileDaily").files[0];
     const status = document.getElementById("statusDaily");
-    if (!file) return alert("Please select dataweb.xlsx file first.");
+    if (!file) return alert("Please select dataweb.xlsx first.");
 
     try {
       const data = await file.arrayBuffer();
       const wb = XLSX.read(data, { type: "array" });
 
-      // Detect sheets (case-insensitive)
       const grossSheet = findSheet(wb, "gross");
       const netSheet = findSheet(wb, "p_net");
-      const invSheet = findSheet(wb, "invoice");
+      const invSheet = findSheet(wb, "invoice date") || findSheet(wb, "invoice");
 
-      let progress = "";
       if (!grossSheet || !netSheet || !invSheet) {
         status.innerHTML = `<span class='error'>❌ Missing required sheets (Gross, P_Net.Inv, Invoice Date)</span>`;
         return;
       }
-
-      if (grossSheet) progress += "✔ Gross loaded<br>";
-      if (netSheet) progress += "✔ P_Net.Inv loaded<br>";
-      if (invSheet) progress += "✔ Invoice Date loaded<br>";
-      status.innerHTML = progress + "⏳ Processing...";
 
       const grossRows = XLSX.utils.sheet_to_json(grossSheet);
       const netRows = XLSX.utils.sheet_to_json(netSheet);
@@ -141,11 +135,10 @@
       const totals = { KM6: { gross: 0, reject: 0, bo: 0, net: 0 }, KML: { gross: 0, reject: 0, bo: 0, net: 0 } };
       const fsTotals = {};
 
-      // --- Process Gross ---
+      // --- Process Gross Sheet ---
       for (const r of grossRows) {
         const record = {};
-        for (let [key, val] of Object.entries(r)) record[key.trim().toUpperCase()] = val;
-
+        for (let [k, v] of Object.entries(r)) record[k.trim().toUpperCase()] = v;
         const branch = U(record["BRANCH NAME"]);
         const fs = U(record["FS"]);
         const val = num(record["SUM OF ORDER AMOUNT"]);
@@ -156,11 +149,10 @@
         if (branch.includes("KML") || branch.includes("LA UNION")) totals.KML.gross += val;
       }
 
-      // --- Process P_Net.Inv ---
+      // --- Process P_Net.Inv Sheet ---
       for (const r of netRows) {
         const record = {};
-        for (let [key, val] of Object.entries(r)) record[key.trim().toUpperCase()] = val;
-
+        for (let [k, v] of Object.entries(r)) record[k.trim().toUpperCase()] = v;
         const branch = U(record["BRANCH NAME"]);
         const fs = U(record["FS"]);
         const rej = num(record["TOTAL REJECTION"]);
@@ -171,7 +163,6 @@
         fsTotals[fs].reject += rej;
         fsTotals[fs].bo += bo;
         fsTotals[fs].net += net;
-
         if (branch.includes("KM6") || branch.includes("BAGUIO")) {
           totals.KM6.reject += rej; totals.KM6.bo += bo; totals.KM6.net += net;
         }
@@ -180,7 +171,7 @@
         }
       }
 
-      // --- Process Invoice Date ---
+      // --- Process Invoice Date Sheet ---
       let invoiceDate = { current: {}, previous: {} };
       if (invRows.length >= 2) {
         const last = invRows[invRows.length - 1];
@@ -191,61 +182,87 @@
         };
       }
 
-      // --- Save to Firebase ---
+      // --- Save to Firebase & Local ---
       await db.collection("km6_dashboard_data").doc("dashboardTotals").set(totals);
       await db.collection("km6_dashboard_data").doc("fsTotals").set(fsTotals);
       await db.collection("km6_dashboard_data").doc("invoiceDate").set(invoiceDate);
 
-      // --- Save locally for Firebase Dashboard ---
       localStorage.setItem("dashboardTotals", JSON.stringify(totals));
       localStorage.setItem("fsTotals", JSON.stringify(fsTotals));
-      localStorage.setItem("invoiceDateData", JSON.stringify(invoiceDate));
-
-      // --- Compatibility for index.html (offline sync) ---
       localStorage.setItem("dataweb", JSON.stringify(grossRows));
       localStorage.setItem("pnetinv", JSON.stringify(netRows));
       localStorage.setItem("invoicedate", JSON.stringify(invRows));
 
-      status.innerHTML = `${progress}✅ Uploaded successfully!<br>Last updated: ${new Date().toLocaleString()}`;
+      // --- Display confirmation ---
+      status.innerHTML = `✅ Daily data uploaded successfully!<br>Last updated: ${new Date().toLocaleString()}`;
+      console.log("📊 Daily data saved:", { totals, fsTotals, invoiceDate });
+
     } catch (err) {
-      console.error(err);
-      status.innerHTML = `<span class='error'>❌ Error: ${err.message}</span>`;
+      console.error("❌ Error uploading dataweb:", err);
+      status.innerHTML = `<span class="error">Error loading file: ${err.message}</span>`;
     }
   });
 
-  // --- Upload Target.xlsx ---
+  // ================================================================
+  // ✅ Upload Monthly Target Data (Target.xlsx)
+  // ================================================================
   document.getElementById("uploadTarget").addEventListener("click", async () => {
     const file = document.getElementById("fileTarget").files[0];
     const status = document.getElementById("statusTarget");
-    if (!file) return alert("Please select Target.xlsx file first.");
+    if (!file) return alert("Please select Target.xlsx first.");
 
     try {
       const data = await file.arrayBuffer();
       const wb = XLSX.read(data, { type: "array" });
-      const sheet = findSheet(wb, "target");
-      if (!sheet) {
-        status.innerHTML = `<span class='error'>❌ Missing 'Target' sheet</span>`;
+      const sheetName = wb.SheetNames.find(n => n.toLowerCase().includes("target")) || wb.SheetNames[0];
+      const sheet = wb.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+      if (!rows.length) {
+        status.innerHTML = `<span class="error">❌ Target sheet is empty</span>`;
         return;
       }
 
-      const rows = XLSX.utils.sheet_to_json(sheet);
-      const branches = {}, fsTargets = {};
-      for (const r of rows) {
-        const branch = U(r["Branch"] || "");
-        const fs = U(r["FS"] || "");
-        const val = num(r["Target Value"]);
-        if (branch) branches[branch] = (branches[branch] || 0) + val;
-        if (fs) fsTargets[fs] = (fsTargets[fs] || 0) + val;
+      const headers = Object.keys(rows[0]);
+      const branchKey = headers.find(h => h.toLowerCase().includes("branch")) || "Branch";
+      const fsKey = headers.find(h => h.toLowerCase().includes("fs")) || "FS";
+      const targetKey = headers.find(h => h.toLowerCase().includes("target")) || "Target Value";
+
+      const branches = {};
+      const fsTotals = {};
+      let validCount = 0;
+
+      for (const row of rows) {
+        let branchRaw = (row[branchKey] || "").toString().trim().toUpperCase();
+        let fsRaw = (row[fsKey] || "").toString().trim().toUpperCase();
+        let rawVal = row[targetKey];
+
+        let val = 0;
+        if (typeof rawVal === "number") val = rawVal;
+        else if (typeof rawVal === "string") val = parseFloat(rawVal.replace(/[^\d.-]/g, "")) || 0;
+        val = Number(val.toFixed(2));
+        if (!branchRaw || val <= 0) continue;
+
+        if (branchRaw === "KM6") branchRaw = "BAGUIO";
+        if (branchRaw === "KML") branchRaw = "LA UNION";
+
+        branches[branchRaw] = (branches[branchRaw] || 0) + val;
+        if (fsRaw) fsTotals[fsRaw] = (fsTotals[fsRaw] || 0) + val;
+        validCount++;
       }
 
-      const targets = { branches, fs: fsTargets };
-      await db.collection("km6_dashboard_data").doc("targets").set(targets);
+      const targets = { branches, fs: fsTotals };
       localStorage.setItem("targets", JSON.stringify(targets));
+      await db.collection("km6_dashboard_data").doc("targets").set(targets);
 
-      status.innerHTML = `✔ Target sheet loaded (${rows.length} rows)<br>✅ Target uploaded!<br>Last updated: ${new Date().toLocaleString()}`;
+      console.log("🎯 Targets saved successfully:", targets);
+      status.innerHTML = `✅ Target sheet loaded (${rows.length} rows, ${validCount} valid targets)<br>
+        Target uploaded successfully!<br>
+        Last updated: ${new Date().toLocaleString()}`;
+
     } catch (err) {
-      console.error(err);
-      status.innerHTML = `<span class='error'>❌ Error: ${err.message}</span>`;
+      console.error("❌ Error uploading Target.xlsx:", err);
+      status.innerHTML = `<span class="error">Error loading file: ${err.message}</span>`;
     }
   });
 </script>

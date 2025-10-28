@@ -339,3 +339,21 @@ td {
     font-size: 24px;
   }
 }
+/* 🧾 Table number alignment fix */
+.table-container table th,
+.table-container table td {
+  text-align: right;           /* Right-align all content */
+  padding: 6px 12px;           /* Add breathing space */
+}
+
+/* Left-align the first column (Branch / KCM names) */
+.table-container table th:first-child,
+.table-container table td:first-child {
+  text-align: left;
+}
+
+/* Optional: make totals bold and highlighted */
+.table-container table tr:last-child {
+  font-weight: bold;
+  background-color: #f5fdf5;
+}

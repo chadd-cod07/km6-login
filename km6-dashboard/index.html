@@ -126,14 +126,12 @@
     </div>
   </section>
 
-  <!-- FS: Total KCM -->
+  <!-- FS Tables -->
   <section class="table-group">
     <h2><span style="color:#f0b400">│</span> Total KCM</h2>
     <div class="table-container">
       <table>
-        <thead>
-          <tr><th>KCM</th><th>Gross</th><th>Rejection</th><th>B.O AMOUNT</th><th>Net Sales</th><th>Target</th><th>%</th><th>Balance</th></tr>
-        </thead>
+        <thead><tr><th>KCM</th><th>Gross</th><th>Rejection</th><th>B.O AMOUNT</th><th>Net Sales</th><th>Target</th><th>%</th><th>Balance</th></tr></thead>
         <tbody id="tblKCM">
           <tr><td>Jim Russel Peralta</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
           <tr><td>Judy Ann Mabanta</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
@@ -146,14 +144,11 @@
     </div>
   </section>
 
-  <!-- FS: Tertiary La Union (KML) -->
   <section class="table-group">
     <h2 style="color:#b71c1c">Tertiary La Union (KML)</h2>
     <div class="table-container">
       <table>
-        <thead>
-          <tr><th>Name</th><th>Gross</th><th>Rejection</th><th>B.O AMOUNT</th><th>Net Sales</th><th>Target</th><th>%</th><th>Balance</th></tr>
-        </thead>
+        <thead><tr><th>Name</th><th>Gross</th><th>Rejection</th><th>B.O AMOUNT</th><th>Net Sales</th><th>Target</th><th>%</th><th>Balance</th></tr></thead>
         <tbody id="tblLU">
           <tr><td>Gemma Jacaban</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
           <tr><td>Jovelyn Castro</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
@@ -163,17 +158,14 @@
     </div>
   </section>
 
-  <!-- FS: Tertiary Baguio (KM6) -->
   <section class="table-group">
     <h2><span style="color:#f0b400">│</span> Tertiary Baguio (KM6)</h2>
     <div class="table-container">
       <table>
-        <thead>
-          <tr><th>Name</th><th>Gross</th><th>Rejection</th><th>B.O AMOUNT</th><th>Net Sales</th><th>Target</th><th>%</th><th>Balance</th></tr>
-        </thead>
+        <thead><tr><th>Name</th><th>Gross</th><th>Rejection</th><th>B.O AMOUNT</th><th>Net Sales</th><th>Target</th><th>%</th><th>Balance</th></tr></thead>
         <tbody id="tblBG">
           <tr><td>Jehu Romero</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
-          <tr><td>MC ARDEL CACHICHO</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
+          <tr><td>Mc Ardel Cachicho</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
           <tr><td>Rocky Fowaya</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
           <tr class="total"><td><strong>Total Baguio</strong></td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
         </tbody>
@@ -185,259 +177,805 @@
 <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore-compat.js"></script>
 <script>
-/* -----------------------------------------------------------
-   🔥 FIREBASE INITIALIZATION
------------------------------------------------------------ */
-const firebaseConfig = {
-  apiKey: "AIzaSyCStpCWdRO770N4SpH3GKYwp9pg1kP6_O4",
-  authDomain: "km6-dashboard.firebaseapp.com",
-  projectId: "km6-dashboard",
-  storageBucket: "km6-dashboard.appspot.com",
-  messagingSenderId: "309068846407",
-  appId: "1:309068846407:web:68d51a21f6ab238fa1a862",
-};
-if (firebase.apps.length === 0) firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-
-/* -----------------------------------------------------------
-   🧮 HELPER FUNCTIONS
------------------------------------------------------------ */
-const fmt = n => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const num = v => parseFloat(String(v || "0").replace(/[^0-9.-]/g, "")) || 0;
-const U = s => String(s || "").trim().toUpperCase();
-
-/* -----------------------------------------------------------
-   ☰ MENU DROPDOWN BEHAVIOR
------------------------------------------------------------ */
-const menuIcon = document.querySelector(".menu-icon");
-const dropdownMenu = document.getElementById("dropdownMenu");
-menuIcon.addEventListener("click", () => {
-  dropdownMenu.style.display = dropdownMenu.style.display === "block" ? "none" : "block";
-});
-window.addEventListener("click", (e) => {
-  if (!e.target.closest(".menu-container")) dropdownMenu.style.display = "none";
-});
-
-const logoutLink = document.getElementById("logoutLink");
-if (logoutLink) {
-  logoutLink.addEventListener("click", (e) => {
-    e.preventDefault();
-    window.location.href = "https://chadd-cod07.github.io/km6-login/";
-  });
-}
-
-/* -----------------------------------------------------------
-   📅 DATE HEADER INFO
------------------------------------------------------------ */
-(function updateKPIs(){
-  const now = new Date();
-  document.querySelector(".summary .date").textContent = now.toLocaleDateString(undefined, { weekday:"short", month:"short", day:"numeric", year:"numeric" });
-  const sellingDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-  const actual = now.getDate();
-  document.getElementById("sellingDays").textContent = sellingDays;
-  document.getElementById("actualDays").textContent = actual;
-  document.getElementById("progressPct").textContent = Math.round(actual/sellingDays*100) + "%";
-  document.getElementById("remainingDays").textContent = sellingDays - actual;
-})();
-
-/* -----------------------------------------------------------
-   🧩 AUTO COMPUTATION (Reflects Uploaded Excel Data)
------------------------------------------------------------ */
-async function waitForUploads() {
-  return new Promise(resolve => {
-    const check = () => {
-      const dw = localStorage.getItem("dataweb");
-      const pn = localStorage.getItem("pnetinv");
-      const id = localStorage.getItem("invoicedate");
-      if (dw && pn && id) resolve(true);
-      else setTimeout(check, 1000);
-    };
-    check();
-  });
-}
-
-async function computeKM6Dashboard() {
-  await waitForUploads();
-// Keep your existing 3 lines
-const dataweb = JSON.parse(localStorage.getItem("dataweb") || "[]");
-const pnetinv = JSON.parse(localStorage.getItem("pnetinv") || "[]");
-const invoicedate = JSON.parse(localStorage.getItem("invoicedate") || "[]");
-
-// 🔹 Add these new lines to handle FS totals + Target sheet
-const fsTotals = JSON.parse(localStorage.getItem("fsTotals") || "{}");
-const targets = JSON.parse(localStorage.getItem("targets") || "{}");
-
-// Debugging logs for clarity
-console.log("📘 dataweb (Gross):", dataweb);
-console.log("📗 pnetinv (P_Net.Inv):", pnetinv);
-console.log("📙 invoicedate (Invoice Date):", invoicedate);
-console.log("📒 fsTotals (FS Computed):", fsTotals);
-console.log("🎯 targets (TargetSales):", targets);
-
-  if (!dataweb.length && !pnetinv.length) {
-    console.warn("⚠️ No uploaded Excel data found.");
-    return;
-  }
-
-  console.log("🔄 Computing dashboard from uploaded Excel data...");
-
-  // Initialize totals
-  let totals = {
-    KM6: { gross: 0, reject: 0, bo: 0, net: 0, target: 0 },
-    KML: { gross: 0, reject: 0, bo: 0, net: 0, target: 0 },
+  // -----------------------------------------------------------
+  // 🔥 FIREBASE INITIALIZATION
+  // -----------------------------------------------------------
+  const firebaseConfig = {
+    apiKey: "AIzaSyCStpCWdRO770N4SpH3GKYwp9pg1kP6_O4",
+    authDomain: "km6-dashboard.firebaseapp.com",
+    projectId: "km6-dashboard",
+    storageBucket: "km6-dashboard.appspot.com",
+    messagingSenderId: "309068846407",
+    appId: "1:309068846407:web:68d51a21f6ab238fa1a862",
   };
+  if (firebase.apps.length === 0) firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
 
-  // --- Gross & Target (dataweb)
-  dataweb.forEach(r => {
-    const branch = (r["Branch Name"] || "").toUpperCase().trim();
-    const gross = num(r["Sum of Order Amount"]);
-    if (branch === "KM6") totals.KM6.gross += gross;
-    if (branch === "KML") totals.KML.gross += gross;
-  });
-  totals.KM6.target = totals.KM6.gross;
-  totals.KML.target = totals.KML.gross;
-
-  // --- Rejection / BO / Net (pnetinv)
-  pnetinv.forEach(r => {
-    const branch = (r["Branch Name"] || "").toUpperCase().trim();
-    const rej = num(r["TOTAL REJECTION"]);
-    const bo = num(r["TOTAL BO"]);
-    const netv = num(r["TOTAL NET"]);
-    if (branch === "KM6") {
-      totals.KM6.reject += rej; totals.KM6.bo += bo; totals.KM6.net += netv;
-    } else if (branch === "KML") {
-      totals.KML.reject += rej; totals.KML.bo += bo; totals.KML.net += netv;
-    }
-  });
-
-  // --- Combine totals
-  const totalGross = totals.KM6.gross + totals.KML.gross;
-  const totalRej = totals.KM6.reject + totals.KML.reject;
-  const totalBO = totals.KM6.bo + totals.KML.bo;
-  const totalNet = totals.KM6.net + totals.KML.net;
-  const totalTarget = totals.KM6.target + totals.KML.target;
-
-  // --- Render table
-  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = fmt(val); };
-
-  // KM6
-  set("km6Gross", totals.KM6.gross);
-  set("km6Reject", totals.KM6.reject);
-  set("km6BO", totals.KM6.bo);
-  set("km6Net", totals.KM6.net);
-  set("km6Target", totals.KM6.target);
-  document.getElementById("km6Pct").textContent = totals.KM6.target ? ((totals.KM6.net / totals.KM6.target) * 100).toFixed(2) + "%" : "-";
-  set("km6Bal", totals.KM6.target - totals.KM6.net);
-
-  // KML
-  set("kmlGross", totals.KML.gross);
-  set("kmlReject", totals.KML.reject);
-  set("kmlBO", totals.KML.bo);
-  set("kmlNet", totals.KML.net);
-  set("kmlTarget", totals.KML.target);
-  document.getElementById("kmlPct").textContent = totals.KML.target ? ((totals.KML.net / totals.KML.target) * 100).toFixed(2) + "%" : "-";
-  set("kmlBal", totals.KML.target - totals.KML.net);
-
-  // TOTAL
-  set("totGross", totalGross);
-  set("totReject", totalRej);
-  set("totBO", totalBO);
-  set("totNet", totalNet);
-  set("totTarget", totalTarget);
-  document.getElementById("totPct").textContent = totalTarget ? ((totalNet / totalTarget) * 100).toFixed(2) + "%" : "-";
-  set("totBal", totalTarget - totalNet);
-
-  // --- Daily Sales cards (invoicedate)
-  if (invoicedate.length > 1) {
-    const last = invoicedate[invoicedate.length - 1];
-    const prev = invoicedate[invoicedate.length - 2];
-    const km6Curr = num(last["KM6"]) + num(last["KML"]);
-    const km6Prev = num(prev["KM6"]) + num(prev["KML"]);
-    const pct = km6Prev ? ((km6Curr - km6Prev) / km6Prev) * 100 : 0;
-
-    const change = (idPrev, idCurr, idChange, prevVal, currVal) => {
-      const elP = document.getElementById(idPrev), elC = document.getElementById(idCurr), elCh = document.getElementById(idChange);
-      if (elP) elP.textContent = fmt(prevVal);
-      if (elC) elC.textContent = fmt(currVal);
-      if (elCh) {
-        elCh.textContent = (pct >= 0 ? "▲ " : "▼ ") + Math.abs(pct).toFixed(2) + "%";
-        elCh.className = pct >= 0 ? "up" : "down";
-      }
-    };
-    change("prevKM6", "currKM6", "changeKM6", km6Prev, km6Curr);
-    change("prevBaguio", "currBaguio", "changeBaguio", num(prev["KM6"]), num(last["KM6"]));
-    change("prevLU", "currLU", "changeLU", num(prev["KML"]), num(last["KML"]));
-  }
-
-  // --- Save to Firebase
-  db.collection("km6_dashboard_data").doc("dashboardTotals").set({
-    KM6: totals.KM6,
-    KML: totals.KML,
-    TOTAL: { gross: totalGross, reject: totalRej, bo: totalBO, net: totalNet },
-    updated: new Date().toLocaleString(),
-  });
-
-  const stamp = document.getElementById("lastUpdated");
-  if (stamp) stamp.textContent = "Last updated: " + new Date().toLocaleString();
-
-  console.log("✅ Dashboard updated and synced with Firebase");
-
-  // Now render FS tables
-  renderFSTables();
-}
-
-/* -----------------------------------------------------------
-   🧩 NEW FUNCTION - RENDER FS TABLES (KCM, KML, KM6)
------------------------------------------------------------ */
-function renderFSTables() {
-  const fsTotals = JSON.parse(localStorage.getItem("fsTotals") || "{}");
+  // -----------------------------------------------------------
+  // 🧮 HELPERS
+  // -----------------------------------------------------------
   const fmt = n => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const num = v => parseFloat(String(v || "0").replace(/[^0-9.-]/g, "")) || 0;
 
+  function getFSTarget(fsName) {
+  const fsData = JSON.parse(localStorage.getItem("fsTargetData") || "[]");
+  const match = fsData.find(x => x.FS.toUpperCase() === fsName.toUpperCase());
+  return match ? match.Target : 0;
+}
+
+
+  // -----------------------------------------------------------
+  // ☰ MENU
+  // -----------------------------------------------------------
+  const menuIcon = document.querySelector(".menu-icon");
+  const dropdownMenu = document.getElementById("dropdownMenu");
+  menuIcon.addEventListener("click", () => dropdownMenu.style.display = dropdownMenu.style.display === "block" ? "none" : "block");
+  window.addEventListener("click", e => { if (!e.target.closest(".menu-container")) dropdownMenu.style.display = "none"; });
+
+  document.getElementById("logoutLink").addEventListener("click", e => {
+    e.preventDefault();
+    window.location.href = "https://chadd-cod07.github.io/km6-login/";
+  });
+
+  // -----------------------------------------------------------
+  // 📅 DATE INFO
+  // -----------------------------------------------------------
+  (function updateKPIs(){
+    const now = new Date();
+    document.querySelector(".summary .date").textContent = now.toLocaleDateString(undefined, { weekday:"short", month:"short", day:"numeric", year:"numeric" });
+    const sellingDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const actual = now.getDate();
+    document.getElementById("sellingDays").textContent = sellingDays;
+    document.getElementById("actualDays").textContent = actual;
+    document.getElementById("progressPct").textContent = Math.round(actual/sellingDays*100) + "%";
+    document.getElementById("remainingDays").textContent = sellingDays - actual;
+  })();
+
+  // -----------------------------------------------------------
+  // WAIT + COMPUTE DASHBOARD
+  // -----------------------------------------------------------
+  async function waitForUploads() {
+    return new Promise(resolve => {
+      const check = () => {
+        if (localStorage.getItem("dataweb") && localStorage.getItem("pnetinv") && localStorage.getItem("invoicedate")) resolve(true);
+        else setTimeout(check, 1000);
+      };
+      check();
+    });
+  }
+
+  async function computeKM6Dashboard() {
+    await waitForUploads();
+
+    // ✅ Normalize header data
+    function fixData(raw) {
+      if (!raw) return [];
+      if (Array.isArray(raw) && Array.isArray(raw[0])) {
+        const headers = raw[0].map(h => String(h || "").trim());
+        return raw.slice(1).map(r => Object.fromEntries(headers.map((h, i) => [h, r[i]])));
+      }
+      return raw;
+    }
+
+    // Load from localStorage
+    let dataweb = fixData(JSON.parse(localStorage.getItem("dataweb") || "[]"));
+    let pnetinv = fixData(JSON.parse(localStorage.getItem("pnetinv") || "[]"));
+    let invoicedate = fixData(JSON.parse(localStorage.getItem("invoicedate") || "[]"));
+    const targets = JSON.parse(localStorage.getItem("targets") || "{}");
+
+    if (!dataweb.length && !pnetinv.length) {
+      console.warn("⚠️ No uploaded Excel data found.");
+      return;
+    }
+
+    // -----------------------------------------------------------
+    // 🧩 MULTI-BRANCH COMPUTATION
+    // -----------------------------------------------------------
+    const branches = ["KM6", "LU", "BAGUIO", "KCM"];
+    const totals = {};
+
+    branches.forEach(branch => {
+      const gross = dataweb
+        .filter(r => (r["Branch Name"] || "").toUpperCase().includes(branch))
+        .reduce((sum, r) => sum + num(r["Sum of Order Amount"]), 0);
+
+      const net = pnetinv
+        .filter(r => (r["Branch Name"] || "").toUpperCase().includes(branch))
+        .reduce((sum, r) => sum + num(r["TOTAL NET"]), 0);
+
+      const rej = pnetinv
+        .filter(r => (r["Branch Name"] || "").toUpperCase().includes(branch))
+        .reduce((sum, r) => sum + num(r["TOTAL REJECTION"]), 0);
+
+      const bo = pnetinv
+        .filter(r => (r["Branch Name"] || "").toUpperCase().includes(branch))
+        .reduce((sum, r) => sum + num(r["TOTAL BO"] || r["TOTAL B.O."]), 0);
+
+      totals[branch] = { gross, net, reject: rej, bo, target: 0 };
+    });
+
+    // -----------------------------------------------------------
+    // 🎯 TARGET INTEGRATION
+    // -----------------------------------------------------------
+    if (targets && typeof targets === "object") {
+      branches.forEach(branch => {
+        const branchTarget = targets[branch] || targets[branch.toLowerCase()] || 0;
+        totals[branch].target = num(branchTarget);
+      });
+    }
+
+    // -----------------------------------------------------------
+    // 🧮 DISPLAY & PERCENTAGE CALCULATION
+    // -----------------------------------------------------------
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = fmt(val); };
+
+    let totalAll = { gross: 0, net: 0, reject: 0, bo: 0, target: 0 };
+    branches.forEach(branch => {
+      const t = totals[branch];
+      totalAll.gross += t.gross; totalAll.net += t.net; totalAll.reject += t.reject; totalAll.bo += t.bo; totalAll.target += t.target;
+      set(`${branch}_gross`, t.gross);
+      set(`${branch}_net`, t.net);
+      set(`${branch}_reject`, t.reject);
+      set(`${branch}_bo`, t.bo);
+      set(`${branch}_target`, t.target);
+      const pct = t.target ? ((t.net / t.target) * 100).toFixed(2) + "%" : "-";
+      const elPct = document.getElementById(`${branch}_pct`);
+      if (elPct) elPct.textContent = pct;
+    });
+
+    set("totGross", totalAll.gross);
+    set("totNet", totalAll.net);
+    set("totReject", totalAll.reject);
+    set("totBO", totalAll.bo);
+    set("totTarget", totalAll.target);
+    document.getElementById("totPct").textContent = totalAll.target ? ((totalAll.net / totalAll.target) * 100).toFixed(2) + "%" : "-";
+
+    // -----------------------------------------------------------
+    // 🕒 INVOICE DATE COMPARISON
+    // -----------------------------------------------------------
+    if (invoicedate.length > 1) {
+      const last = invoicedate[invoicedate.length - 1];
+      const prev = invoicedate[invoicedate.length - 2];
+      const km6Curr = num(last["KM6"]) + num(last["KML"]);
+      const km6Prev = num(prev["KM6"]) + num(prev["KML"]);
+      const pct = km6Prev ? ((km6Curr - km6Prev) / km6Prev) * 100 : 0;
+
+      const change = (idPrev, idCurr, idChange, prevVal, currVal) => {
+        const elP = document.getElementById(idPrev), elC = document.getElementById(idCurr), elCh = document.getElementById(idChange);
+        if (elP) elP.textContent = fmt(prevVal);
+        if (elC) elC.textContent = fmt(currVal);
+        if (elCh) { elCh.textContent = (pct >= 0 ? "▲ " : "▼ ") + Math.abs(pct).toFixed(2) + "%"; elCh.className = pct >= 0 ? "up" : "down"; }
+      };
+      change("prevKM6", "currKM6", "changeKM6", km6Prev, km6Curr);
+    }
+
+    // -----------------------------------------------------------
+    // 🔄 FIREBASE SYNC
+    // -----------------------------------------------------------
+    db.collection("km6_dashboard_data").doc("dashboardTotals").set({
+      totals,
+      overall: totalAll,
+      updated: new Date().toLocaleString(),
+    });
+
+    document.getElementById("lastUpdated").textContent = "Last updated: " + new Date().toLocaleString();
+
+    renderFSTables();
+// -----------------------------------------------------------
+// 🧮 COMPUTE FS TOTALS (from dataweb.xlsx sheets)
+// -----------------------------------------------------------
+function computeFSTotals() {
+  const dataweb = JSON.parse(localStorage.getItem("dataweb") || "[]");
+  const pnetinv = JSON.parse(localStorage.getItem("pnetinv") || "[]");
+  if (!Array.isArray(dataweb) || !Array.isArray(pnetinv)) {
+    console.warn("⚠️ Missing dataweb or pnetinv in localStorage.");
+    return;
+  }
+
+  const fsTotals = {};
+  const num = v => parseFloat(String(v || "0").replace(/[^0-9.-]/g, "")) || 0;
+
+  // --- From GROSS sheet ---
+  dataweb.forEach(row => {
+    const fs = String(row["FS"] || "").trim().toUpperCase();
+    const gross = num(row["Sum of Order Amount"]);
+    if (!fs) return;
+    if (!fsTotals[fs]) fsTotals[fs] = { gross: 0, reject: 0, bo: 0, net: 0 };
+    fsTotals[fs].gross += gross;
+  });
+
+  // --- From P_Net.Inv sheet ---
+  pnetinv.forEach(row => {
+    const fs = String(row["FS"] || "").trim().toUpperCase();
+    const rej = num(row["TOTAL REJECTION"]);
+    const bo = num(row["TOTAL BO"] || row["TOTAL B.O."]);
+    const net = num(row["TOTAL NET"]);
+    if (!fs) return;
+    if (!fsTotals[fs]) fsTotals[fs] = { gross: 0, reject: 0, bo: 0, net: 0 };
+    fsTotals[fs].reject += rej;
+    fsTotals[fs].bo += bo;
+    fsTotals[fs].net += net;
+  });
+
+  localStorage.setItem("fsTotals", JSON.stringify(fsTotals));
+  console.log("✅ FS totals computed:", fsTotals);
+}
+
+// 🟩 Call before rendering tables
+computeFSTotals();
+
+  }
+// -----------------------------------------------------------
+// 🧾 RENDER FS TABLES (Smart match for Gemma & MC ARDEL)
+// -----------------------------------------------------------
+function renderFSTables() {
+  const fsTotals = JSON.parse(localStorage.getItem("fsTotals") || "{}");
+
   const groups = {
-    KCM: ["Jim Russel Peralta", "Judy Ann Mabanta", "Gilbert Aquino", "Roderick Dacay", "Gyver Gano"],
-    KML: ["Gemma Jacaban", "Jovelyn Castro"],
-    BG: ["Jehu Romero", "MC ARDEL CACHICHO", "Rocky Fowaya"]
+    KCM: ["Jim Russel Peralta","Judy Ann Mabanta","Gilbert Aquino","Roderick Dacay","Gyver Gano"],
+    LU: ["Gemma Jacaban","Jovelyn Castro"],
+    BG: ["Jehu Romero","Mc Ardel Cachicho","Rocky Fowaya"]
   };
 
+  const tableIds = { KCM: "tblKCM", LU: "tblLU", BG: "tblBG" };
+  const num = v => parseFloat(String(v || "0").replace(/[^0-9.-]/g, "")) || 0;
+  const fmt = n => Number(n || 0).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+
+  // 🔹 Helper: normalize FS names
+  const cleanName = n =>
+    String(n || "")
+      .toUpperCase()
+      .replace(/\s+/g, " ")
+      .replace(/\u00A0/g, " ") // remove special spaces
+      .trim();
+
+  // 🔹 Get FS Target data (used for % and balance)
+  const fsTargetData = JSON.parse(localStorage.getItem("fsTargetData") || "[]");
+  const fsTargets = {};
+  fsTargetData.forEach(t => {
+    if (t.FS) fsTargets[cleanName(t.FS)] = num(t.Target);
+  });
+
   for (const [group, names] of Object.entries(groups)) {
-    const tbody = document.querySelector(`#tbl${group}`);
+    const tbody = document.querySelector(`#${tableIds[group]}`);
     if (!tbody) continue;
+
     const totalRow = tbody.querySelector(".total");
     tbody.innerHTML = "";
     if (totalRow) tbody.appendChild(totalRow);
-    let total = { gross: 0, reject: 0, bo: 0, net: 0 };
+
+    let total = { gross: 0, reject: 0, bo: 0, net: 0, target: 0, balance: 0 };
 
     names.forEach(name => {
-      const data = fsTotals[name.toUpperCase()] || {};
-      const gross = num(data.gross);
-      const rej = num(data.reject);
-      const bo = num(data.bo);
-      const net = num(data.net);
-      total.gross += gross;
-      total.reject += rej;
-      total.bo += bo;
-      total.net += net;
+      const fsKey = cleanName(name);
+      let matchedKey = Object.keys(fsTotals).find(k => cleanName(k) === fsKey) || null;
+      const d = matchedKey ? fsTotals[matchedKey] : {};
+
+      const g = num(d.gross), r = num(d.reject), b = num(d.bo), n = num(d.net);
+      const target = fsTargets[fsKey] || 0;
+      const pct = target > 0 ? (n / target) * 100 : 0;
+      const balance = n - target; // ✅ Net Sales - Target
+
+      total.gross += g; total.reject += r; total.bo += b; total.net += n; total.target += target; total.balance += balance;
+
+      const fmtVal = (v) => {
+        const abs = Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return v < 0 ? `(${abs})` : abs;
+      };
 
       const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${name}</td><td>${fmt(gross)}</td><td>${fmt(rej)}</td><td>${fmt(bo)}</td><td>${fmt(net)}</td><td>-</td><td>-</td><td>-</td>`;
+      tr.innerHTML = `
+        <td>${name}</td>
+        <td>${fmt(g)}</td>
+        <td>${fmt(r)}</td>
+        <td>${fmt(b)}</td>
+        <td>${fmt(n)}</td>
+        <td>${fmt(target)}</td>
+        <td>${fmtVal(pct)}%</td>
+        <td>${fmtVal(balance)}</td>
+      `;
       tbody.insertBefore(tr, totalRow);
     });
 
-    totalRow.innerHTML = `<td><strong>Total ${group}</strong></td><td>${fmt(total.gross)}</td><td>${fmt(total.reject)}</td><td>${fmt(total.bo)}</td><td>${fmt(total.net)}</td><td>-</td><td>-</td><td>-</td>`;
-  }
+    const fmtVal = (v) => {
+      const abs = Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      return v < 0 ? `(${abs})` : abs;
+    };
 
-  console.log("✅ FS Tables updated successfully");
+    totalRow.innerHTML = `
+      <td><strong>Total ${group}</strong></td>
+      <td>${fmt(total.gross)}</td>
+      <td>${fmt(total.reject)}</td>
+      <td>${fmt(total.bo)}</td>
+      <td>${fmt(total.net)}</td>
+      <td>${fmt(total.target)}</td>
+      <td>${fmtVal(total.target > 0 ? (total.net / total.target) * 100 : 0)}%</td>
+      <td>${fmtVal(total.balance)}</td>
+    `;
+  }
 }
 
-/* -----------------------------------------------------------
-   🕒 INITIAL LOAD + AUTO REFRESH
------------------------------------------------------------ */
-computeKM6Dashboard();
+// -----------------------------------------------------------
+// 🧮 COMPUTE BRANCH SUMMARY (Baguio + La Union)
+// -----------------------------------------------------------
+function computeBranchSummary() {
+  const fsTotals = JSON.parse(localStorage.getItem("fsTotals") || "{}");
+  const dataweb = JSON.parse(localStorage.getItem("dataweb") || "[]");
+  const pnetinv = JSON.parse(localStorage.getItem("pnetinv") || "[]");
 
-window.addEventListener("storage", (e) => {
+  const branches = {
+    BAGUIO: { gross: 0, reject: 0, bo: 0, net: 0 },
+    "LA UNION": { gross: 0, reject: 0, bo: 0, net: 0 }
+  };
+
+  const num = t => parseFloat(String(t || "").replace(/[^0-9.-]/g, "")) || 0;
+
+  // --- From GROSS sheet (dataweb) ---
+  dataweb.forEach(r => {
+    const rec = {};
+    for (const [k, v] of Object.entries(r)) rec[k.trim().toUpperCase()] = v;
+
+    const branch = (rec["BRANCH NAME"] || "").toUpperCase();
+    const gross = num(rec["SUM OF ORDER AMOUNT"]);
+
+    if (branch.includes("KM6") || branch.includes("BAGUIO")) branches.BAGUIO.gross += gross;
+    if (branch.includes("KML") || branch.includes("LA UNION")) branches["LA UNION"].gross += gross;
+  });
+
+  // --- From P_Net.Inv sheet (pnetinv) ---
+  pnetinv.forEach(r => {
+    const rec = {};
+    for (const [k, v] of Object.entries(r)) rec[k.trim().toUpperCase()] = v;
+
+    const branch = (rec["BRANCH NAME"] || "").toUpperCase();
+    const rej = num(rec["TOTAL REJECTION"]);
+    const bo = num(rec["TOTAL BO"]) || num(rec["TOTAL B.O."]);
+    const net = num(rec["TOTAL NET"]);
+
+    if (branch.includes("KM6") || branch.includes("BAGUIO")) {
+      branches.BAGUIO.reject += rej;
+      branches.BAGUIO.bo += bo;
+      branches.BAGUIO.net += net;
+    }
+    if (branch.includes("KML") || branch.includes("LA UNION")) {
+      branches["LA UNION"].reject += rej;
+      branches["LA UNION"].bo += bo;
+      branches["LA UNION"].net += net;
+    }
+  });
+
+  // --- Helper for formatting ---
+  const fmt = n => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const set = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = fmt(val);
+  };
+
+  // --- Display individual branches ---
+  set("km6Gross", branches.BAGUIO.gross);
+  set("km6Reject", branches.BAGUIO.reject);
+  set("km6BO", branches.BAGUIO.bo);
+  set("km6Net", branches.BAGUIO.net);
+
+  set("kmlGross", branches["LA UNION"].gross);
+  set("kmlReject", branches["LA UNION"].reject);
+  set("kmlBO", branches["LA UNION"].bo);
+  set("kmlNet", branches["LA UNION"].net);
+
+  // --- ✅ FIXED: Compute total row ---
+  const totalGross = branches.BAGUIO.gross + branches["LA UNION"].gross;
+  const totalReject = branches.BAGUIO.reject + branches["LA UNION"].reject;
+  const totalBO = branches.BAGUIO.bo + branches["LA UNION"].bo;
+  const totalNet = branches.BAGUIO.net + branches["LA UNION"].net;
+
+  // --- Update total KM6 row ---
+  set("totGross", totalGross);
+  set("totReject", totalReject);
+  set("totBO", totalBO);
+  set("totNet", totalNet);
+
+  console.log("🏢 Branch summary (Baguio + La Union):", branches);
+  console.log("📊 Total KM6:", { totalGross, totalReject, totalBO, totalNet });
+}
+
+// -----------------------------------------------------------
+// INITIAL LOAD + AUTO REFRESH (Final Clean Version)
+// -----------------------------------------------------------
+computeKM6Dashboard();
+computeBranchSummary(); // ✅ Make sure Branch Summary runs immediately
+autoSumTotals(); // ✅ Run Excel-like AutoSum once when page loads
+
+window.addEventListener("storage", e => {
   if (["dataweb", "pnetinv", "invoicedate", "fsTotals"].includes(e.key)) {
     computeKM6Dashboard();
+    computeBranchSummary();
+    autoSumTotals(); // ✅ Recalculate totals whenever data updates
+  }
+});
+
+// -----------------------------------------------------------
+// ✅ AUTO-SUM LOGIC (like Excel)
+// -----------------------------------------------------------
+function autoSumTotals() {
+  function getNumber(id) {
+    const el = document.getElementById(id);
+    return el ? parseFloat(el.textContent.replace(/,/g, "")) || 0 : 0;
+  }
+
+  function setNumber(id, value) {
+    const el = document.getElementById(id);
+    if (el)
+      el.textContent = value.toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+  }
+
+  // --- Excel-style "AutoSum" for Total KM6 ---
+  const totalGross = getNumber("km6Gross") + getNumber("kmlGross");
+  const totalReject = getNumber("km6Reject") + getNumber("kmlReject");
+  const totalBO = getNumber("km6BO") + getNumber("kmlBO");
+  const totalNet = getNumber("km6Net") + getNumber("kmlNet");
+
+  // --- Update Total KM6 row ---
+  setNumber("totGross", totalGross);
+  setNumber("totReject", totalReject);
+  setNumber("totBO", totalBO);
+  setNumber("totNet", totalNet);
+
+  console.log("📊 AutoSum Total KM6:", {
+    totalGross,
+    totalReject,
+    totalBO,
+    totalNet,
+  });
+}
+</script>
+<script>
+// -----------------------------------------------------------
+// ✅ AUTO-SUM LOGIC (Works on visible table rows)
+// -----------------------------------------------------------
+function autoSumTotals() {
+  const table = document.querySelector(".table-container table");
+  if (!table) return;
+
+  // get all rows inside tbody
+  const rows = table.querySelectorAll("tbody tr");
+  let totalGross = 0, totalReject = 0, totalBO = 0, totalNet = 0;
+
+  rows.forEach(row => {
+    const cells = row.querySelectorAll("td");
+    if (!cells.length) return;
+    const branchName = cells[0].innerText.trim();
+
+    // skip the total row
+    if (branchName.toLowerCase().includes("total km6")) return;
+
+    totalGross += Number(cells[1].innerText.replace(/,/g, "")) || 0;
+    totalReject += Number(cells[2].innerText.replace(/,/g, "")) || 0;
+    totalBO += Number(cells[3].innerText.replace(/,/g, "")) || 0;
+    totalNet += Number(cells[4].innerText.replace(/,/g, "")) || 0;
+  });
+
+  // find the "Total KM6" row
+  const totalRow = Array.from(rows).find(row =>
+    row.querySelector("td")?.innerText.trim().toLowerCase().includes("total km6")
+  );
+
+  if (totalRow) {
+    const tds = totalRow.querySelectorAll("td");
+    tds[1].innerText = totalGross.toLocaleString(undefined, { minimumFractionDigits: 2 });
+    tds[2].innerText = totalReject.toLocaleString(undefined, { minimumFractionDigits: 2 });
+    tds[3].innerText = totalBO.toLocaleString(undefined, { minimumFractionDigits: 2 });
+    tds[4].innerText = totalNet.toLocaleString(undefined, { minimumFractionDigits: 2 });
+  }
+
+  console.log("📊 AutoSum Total KM6:", {
+    totalGross,
+    totalReject,
+    totalBO,
+    totalNet,
+  });
+}
+
+// Run after table render (slight delay ensures data loaded)
+setTimeout(autoSumTotals, 800);
+</script>
+<script>
+// ✅ Helper: Get target value per FS name
+function getFSTarget(fsName) {
+  const data = JSON.parse(localStorage.getItem("fsTargetData") || "[]");
+  const match = data.find(x => x.FS.toUpperCase() === fsName.toUpperCase());
+  return match ? Number(match.Target) : 0;
+}
+
+// ✅ Auto-fill Target column in all FS tables (KCM, LU, Baguio)
+function updateFSTargets() {
+  const tables = ["tblKCM", "tblLU", "tblBG"]; // your table IDs
+  tables.forEach(tblId => {
+    const tbody = document.getElementById(tblId);
+    if (!tbody) return;
+
+    const rows = tbody.querySelectorAll("tr:not(.total)");
+    rows.forEach(row => {
+      const cells = row.querySelectorAll("td");
+      if (!cells.length) return;
+
+      const fsName = cells[0].innerText.trim();
+      if (!fsName) return;
+
+      // get target from localStorage (like VLOOKUP)
+      const target = getFSTarget(fsName);
+      if (target > 0) {
+        // Target column = 6th cell (index 5)
+        cells[5].innerText = target.toLocaleString(undefined, { minimumFractionDigits: 2 });
+      }
+    });
+  });
+
+  console.log("🎯 FS Targets updated successfully in dashboard.");
+}
+
+// ✅ Run after page loads
+window.addEventListener("DOMContentLoaded", () => {
+  setTimeout(updateFSTargets, 1000);
+});
+</script>
+<script>
+// ✅ Auto-sum "Target" column totals in each FS table
+function autoSumFSTargetTotals() {
+  const tables = ["tblKCM", "tblLU", "tblBG"]; // table IDs
+  tables.forEach(tblId => {
+    const tbody = document.getElementById(tblId);
+    if (!tbody) return;
+
+    const rows = tbody.querySelectorAll("tr:not(.total)");
+    const totalRow = tbody.querySelector("tr.total");
+    if (!totalRow) return;
+
+    let totalTarget = 0;
+
+    rows.forEach(row => {
+      const cells = row.querySelectorAll("td");
+      if (cells.length < 6) return;
+      const val = Number(cells[5].innerText.replace(/,/g, "")) || 0;
+      totalTarget += val;
+    });
+
+    // update the total target cell (6th <td>)
+    const totalCells = totalRow.querySelectorAll("td");
+    if (totalCells.length >= 6) {
+      totalCells[5].innerText = totalTarget.toLocaleString(undefined, { minimumFractionDigits: 2 });
+    }
+  });
+
+  console.log("🧮 Auto-summed total Targets per FS table.");
+}
+
+// ✅ Run after target values are filled
+window.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    updateFSTargets();
+    autoSumFSTargetTotals();
+  }, 1200);
+});
+</script>
+<script>
+// ✅ Map branch names (for clarity)
+const branchMap = {
+  "Baguio": "KM6",
+  "La Union": "KML"
+};
+
+// ✅ Auto-fill Branch Summary Targets directly from uploaded data (KM6 → Baguio, KML → La Union)
+function updateBranchTargets() {
+  const targetData = JSON.parse(localStorage.getItem("targets") || "{}");
+  if (!targetData.branches) {
+    console.warn("⚠️ No branch-level target data found.");
+    return;
+  }
+
+  // --- Auto-map Excel branch names to dashboard display names ---
+  const km6Val = targetData.branches.KM6 || targetData.branches.BAGUIO || 0;
+  const kmlVal = targetData.branches.KML || targetData.branches["LA UNION"] || 0;
+
+  // --- Update table cells ---
+  const bagCell = document.getElementById("km6Target"); // Baguio
+  const luCell  = document.getElementById("kmlTarget"); // La Union
+  const totalCell = document.getElementById("totTarget");
+
+  if (bagCell) bagCell.innerText = km6Val.toLocaleString(undefined, { minimumFractionDigits: 2 });
+  if (luCell)  luCell.innerText  = kmlVal.toLocaleString(undefined, { minimumFractionDigits: 2 });
+  if (totalCell) totalCell.innerText = (km6Val + kmlVal).toLocaleString(undefined, { minimumFractionDigits: 2 });
+
+  console.log("🏢 Branch Targets updated automatically from Excel:", {
+    Baguio: km6Val,
+    "La Union": kmlVal,
+    Total: km6Val + kmlVal
+  });
+}
+
+// ✅ Run after everything else is done
+window.addEventListener("DOMContentLoaded", () => {
+  setTimeout(updateBranchTargets, 1500);
+});
+</script>
+<script>
+// ✅ Compute % and Balance for each branch (with accounting-style negatives)
+function updateBranchSummaryCalculations() {
+  const rows = [
+    { netId: "km6Net", targetId: "km6Target", pctId: "km6Pct", balId: "km6Bal" },
+    { netId: "kmlNet", targetId: "kmlTarget", pctId: "kmlPct", balId: "kmlBal" }
+  ];
+
+  let totalNet = 0, totalTarget = 0, totalBal = 0;
+
+  rows.forEach(row => {
+    const net = parseFloat((document.getElementById(row.netId)?.innerText || "0").replace(/,/g, "")) || 0;
+    const tar = parseFloat((document.getElementById(row.targetId)?.innerText || "0").replace(/,/g, "")) || 0;
+
+    let pct = 0;
+    let bal = net - tar;
+
+    if (tar > 0) pct = (net / tar) * 100;
+
+    // ✅ Format percentage
+    const pctText = pct.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "%";
+
+    // ✅ Format balance (if negative → show in parentheses)
+    const balText = bal < 0
+      ? `(${Math.abs(bal).toLocaleString(undefined, { minimumFractionDigits: 2 })})`
+      : bal.toLocaleString(undefined, { minimumFractionDigits: 2 });
+
+    document.getElementById(row.pctId).innerText = pctText;
+    document.getElementById(row.balId).innerText = balText;
+
+    totalNet += net;
+    totalTarget += tar;
+    totalBal += bal;
+  });
+
+  // ✅ Compute totals for “Total KM6” row
+  const totPct = totalTarget > 0 ? (totalNet / totalTarget) * 100 : 0;
+  const totBalText = totalBal < 0
+    ? `(${Math.abs(totalBal).toLocaleString(undefined, { minimumFractionDigits: 2 })})`
+    : totalBal.toLocaleString(undefined, { minimumFractionDigits: 2 });
+
+  document.getElementById("totPct").innerText = totPct.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "%";
+  document.getElementById("totBal").innerText = totBalText;
+
+  console.log("📊 Branch Summary % and Balance updated successfully.");
+}
+
+// ✅ Run automatically after branch targets update
+window.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    updateBranchTargets();
+    updateBranchSummaryCalculations();
+  }, 2000);
+});
+
+/// 🧾 DAILY SALES COMPUTATION + DISPLAY (From "Invoice date" sheet)
+// -----------------------------------------------------------
+function computeDailySales(invoiceData) {
+  if (!invoiceData || !invoiceData.length) return null;
+
+  // ✅ Normalize headers (convert to uppercase for consistent access)
+  invoiceData = invoiceData.map(r => {
+    const obj = {};
+    for (const [k, v] of Object.entries(r)) obj[k.trim().toUpperCase()] = v;
+    return obj;
+  });
+
+  // ✅ Filter only rows that have valid KM6, KML, or TOTAL data
+  const validRows = invoiceData.filter(r =>
+    r["INVOICE DATE"] && (r["KM6"] || r["KML"] || r["TOTAL"])
+  );
+
+  if (!validRows.length) {
+    console.warn("⚠️ No valid 'Invoice date' rows found.");
+    return null;
+  }
+
+  console.log("📘 Loaded Invoice date data:", validRows.slice(-5));
+
+  if (validRows.length < 2) return null; // not enough data for comparison
+
+  // ✅ Get previous and current day records (last two rows)
+  const prev = validRows[validRows.length - 2];
+  const curr = validRows[validRows.length - 1];
+
+  const toNum = v => parseFloat(String(v || "0").replace(/[^0-9.-]/g, "")) || 0;
+  const calcChange = (currVal, prevVal) =>
+    prevVal !== 0 ? ((currVal - prevVal) / prevVal) * 100 : 0;
+
+  return {
+    KM6: {
+      prev: toNum(prev["KM6"]),
+      curr: toNum(curr["KM6"]),
+      change: calcChange(toNum(curr["KM6"]), toNum(prev["KM6"]))
+    },
+    KML: {
+      prev: toNum(prev["KML"]),
+      curr: toNum(curr["KML"]),
+      change: calcChange(toNum(curr["KML"]), toNum(prev["KML"]))
+    },
+    Total: {
+      prev: toNum(prev["TOTAL"]),
+      curr: toNum(curr["TOTAL"]),
+      change: calcChange(toNum(curr["TOTAL"]), toNum(prev["TOTAL"]))
+    }
+  };
+}
+
+function renderDailySales() {
+  // ✅ Support all possible key names in localStorage
+  const invoiceData =
+    JSON.parse(localStorage.getItem("invoicedate") || "[]") ||
+    JSON.parse(localStorage.getItem("invoiceDateData") || "[]") ||
+    [];
+
+  if (!invoiceData.length) {
+    console.warn("⚠️ No 'Invoice date' data found in localStorage.");
+    return;
+  }
+
+  const dailySales = computeDailySales(invoiceData);
+  if (!dailySales) return;
+
+  const peso = n => "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits: 2 });
+  const arrow = pct =>
+    pct > 0
+      ? `<span style='color:green;'>▲ ${pct.toFixed(2)}%</span>`
+      : pct < 0
+      ? `<span style='color:red;'>▼ ${Math.abs(pct).toFixed(2)}%</span>`
+      : `<span style='color:gray;'>0.00%</span>`;
+
+  // 🟩 Update Cards
+  document.getElementById("prevKM6").textContent = peso(dailySales.Total.prev);
+  document.getElementById("currKM6").textContent = peso(dailySales.Total.curr);
+  document.getElementById("changeKM6").innerHTML = arrow(dailySales.Total.change);
+
+  // “KM6” = Baguio
+  document.getElementById("prevBaguio").textContent = peso(dailySales.KM6.prev);
+  document.getElementById("currBaguio").textContent = peso(dailySales.KM6.curr);
+  document.getElementById("changeBaguio").innerHTML = arrow(dailySales.KM6.change);
+
+  // “KML” = La Union
+  document.getElementById("prevLU").textContent = peso(dailySales.KML.prev);
+  document.getElementById("currLU").textContent = peso(dailySales.KML.curr);
+  document.getElementById("changeLU").innerHTML = arrow(dailySales.KML.change);
+
+  console.log("✅ Daily Sales Updated from 'Invoice date' sheet:", dailySales);
+}
+
+// Auto-run once page is loaded
+window.addEventListener("DOMContentLoaded", () => {
+  setTimeout(renderDailySales, 500);
+});
+
+
+// -----------------------------------------------------------
+// 🔄 AUTO-REFRESH DASHBOARD WHEN UPLOAD PAGE UPDATES STORAGE
+// -----------------------------------------------------------
+window.addEventListener("storage", (event) => {
+  const keys = ["dataweb", "pnetinv", "invoicedate", "invoiceDateData", "targets"];
+  if (keys.includes(event.key)) {
+    console.log("🔄 Detected data update from upload page. Refreshing dashboard...");
+    computeKM6Dashboard();
+    computeBranchSummary();
+    autoSumTotals();
+    updateBranchTargets();
+    updateBranchSummaryCalculations();
+  }
+});
+window.addEventListener("storage", (event) => {
+  if (event.key === "invoicedate") {
+    console.log("🔄 Detected new Invoice date upload, refreshing daily sales...");
+    renderDailySales();
   }
 });
 </script>
