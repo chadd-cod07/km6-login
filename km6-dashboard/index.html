@@ -380,20 +380,38 @@ console.log("✅ Multi-branch totals computed:", totals);
       };
       change("prevKM6", "currKM6", "changeKM6", km6Prev, km6Curr);
     }
+// -----------------------------------------------------------
+// 🔄 FIREBASE SYNC (Upload + Auto-Load if LocalStorage Empty)
+// -----------------------------------------------------------
+await db.collection("km6_dashboard_data").doc("dashboardTotals").set({
+  totals,
+  overall: totalAll,
+  updated: new Date().toLocaleString(),
+});
 
-    // -----------------------------------------------------------
-    // 🔄 FIREBASE SYNC
-    // -----------------------------------------------------------
-    db.collection("km6_dashboard_data").doc("dashboardTotals").set({
-      totals,
-      overall: totalAll,
-      updated: new Date().toLocaleString(),
-    });
+// ✅ If localStorage empty (like on mobile), auto-load latest from Firestore
+let fsTotals = JSON.parse(localStorage.getItem("fsTotals") || "{}");
+if (!Object.keys(fsTotals).length) {
+  console.log("📡 LocalStorage empty — loading latest data from Firestore...");
+  const snapshot = await db.collection("km6_dashboard_data").doc("dashboardTotals").get();
+  if (snapshot.exists) {
+    const data = snapshot.data();
+    localStorage.setItem("fsTotals", JSON.stringify(data.totals));
+    localStorage.setItem("overall", JSON.stringify(data.overall));
+    console.log("✅ Data restored from Firestore:", data);
+  } else {
+    console.warn("⚠️ No data found in Firestore document 'dashboardTotals'.");
+  }
+}
 
-    document.getElementById("lastUpdated").textContent = "Last updated: " + new Date().toLocaleString();
+// ✅ Update timestamp label
+document.getElementById("lastUpdated").textContent =
+  "Last updated: " + new Date().toLocaleString();
 
     renderFSTables();
-  } // ✅ closes computeKM6Dashboard function properly
+  }
+  
+   // ✅ closes computeKM6Dashboard function properly
 
 // -----------------------------------------------------------
 // 🧮 COMPUTE FS TOTALS (Final Stable SUM Version)
