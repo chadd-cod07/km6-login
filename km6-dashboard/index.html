@@ -190,7 +190,66 @@
   };
   if (firebase.apps.length === 0) firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
+// -----------------------------------------------------------
+// 📲 AUTO RESTORE DASHBOARD DATA FROM FIREBASE (FOR MOBILE)
+// -----------------------------------------------------------
+async function restoreDashboardFromCloud() {
+  try {
+    console.log("📡 Checking Firestore for saved dashboard data...");
+    const docRef = db.collection("km6_dashboard_data").doc("dashboardTotals");
+    const snapshot = await docRef.get();
 
+    if (!snapshot.exists) {
+      console.warn("⚠️ No dashboardTotals document found in Firestore.");
+      return;
+    }
+
+    const data = snapshot.data();
+    console.log("✅ Dashboard data found in Firestore:", data);
+
+    // ✅ Restore all major datasets to localStorage
+    if (data.dataweb) localStorage.setItem("dataweb", JSON.stringify(data.dataweb));
+    if (data.pnetinv) localStorage.setItem("pnetinv", JSON.stringify(data.pnetinv));
+    if (data.invoicedate) localStorage.setItem("invoicedate", JSON.stringify(data.invoicedate));
+    if (data.fsTotals) localStorage.setItem("fsTotals", JSON.stringify(data.fsTotals));
+    if (data.overall) localStorage.setItem("overall", JSON.stringify(data.overall));
+
+    console.log("💾 Data restored to localStorage from Firebase.");
+
+    // ✅ Re-render everything
+    if (typeof renderDailySales === "function") renderDailySales();
+    if (typeof computeBranchSummary === "function") computeBranchSummary();
+    if (typeof renderFSTables === "function") renderFSTables();
+    if (typeof autoSumTotals === "function") autoSumTotals();
+    if (typeof updateBranchTargets === "function") updateBranchTargets();
+    if (typeof updateBranchSummaryCalculations === "function") updateBranchSummaryCalculations();
+
+    // ✅ Update timestamp label
+    const lastUpdated = document.getElementById("lastUpdated");
+    if (lastUpdated)
+      lastUpdated.textContent =
+        "Last updated: " + (data.updated || new Date().toLocaleString());
+
+    console.log("🎯 Dashboard fully restored and refreshed!");
+  } catch (err) {
+    console.error("❌ Error restoring data from Firebase:", err);
+  }
+}
+
+// 🟢 AUTO RUN on page load (detect if mobile has no data)
+window.addEventListener("load", async () => {
+  const hasData =
+    localStorage.getItem("dataweb") &&
+    localStorage.getItem("pnetinv") &&
+    localStorage.getItem("invoicedate");
+
+  if (!hasData) {
+    console.log("📱 No local data found — restoring from Firebase...");
+    await restoreDashboardFromCloud();
+  } else {
+    console.log("💾 Local data found — skipping restore.");
+  }
+});
   // -----------------------------------------------------------
   // 🧮 HELPERS
   // -----------------------------------------------------------
