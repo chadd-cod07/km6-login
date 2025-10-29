@@ -401,8 +401,17 @@ function computeFSTotals() {
   console.log("✅ FS totals computed:", fsTotals);
 }
 
-// 🟩 Call before rendering tables
-computeFSTotals();
+// 🟩 Compute FS totals only if missing or outdated
+let existingFsTotals = JSON.parse(localStorage.getItem("fsTotals") || "{}");
+if (!Object.keys(existingFsTotals).length) {
+  console.log("🧮 Recomputing FS totals (none found in storage)...");
+  computeFSTotals();
+} else {
+  console.log("📦 Loaded FS totals from localStorage:", existingFsTotals);
+}
+
+// ✅ Always re-render FS tables after ensuring fsTotals exist
+renderFSTables();
 
   }
 // -----------------------------------------------------------
@@ -979,6 +988,5 @@ window.addEventListener("storage", (event) => {
   }
 });
 </script>
-
 </body>
 </html>
