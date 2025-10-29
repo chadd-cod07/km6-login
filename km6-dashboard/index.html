@@ -381,32 +381,62 @@ console.log("✅ Multi-branch totals computed:", totals);
       change("prevKM6", "currKM6", "changeKM6", km6Prev, km6Curr);
     }
 // -----------------------------------------------------------
-// 🔄 FIREBASE SYNC (Upload + Auto-Load if LocalStorage Empty)
+// 🔄 FIREBASE SYNC (Upload + Auto-Restore + Auto-Refresh)
 // -----------------------------------------------------------
 await db.collection("km6_dashboard_data").doc("dashboardTotals").set({
   totals,
   overall: totalAll,
+  dataweb,
+  pnetinv,
+  invoicedate,
+  fsTotals: JSON.parse(localStorage.getItem("fsTotals") || "{}"),
   updated: new Date().toLocaleString(),
 });
 
-// ✅ If localStorage empty (like on mobile), auto-load latest from Firestore
-let fsTotals = JSON.parse(localStorage.getItem("fsTotals") || "{}");
-if (!Object.keys(fsTotals).length) {
-  console.log("📡 LocalStorage empty — loading latest data from Firestore...");
+// ✅ AUTO RESTORE (for Mobile / Empty Local Data)
+if (
+  !localStorage.getItem("dataweb") ||
+  !localStorage.getItem("pnetinv") ||
+  !localStorage.getItem("invoicedate") ||
+  !localStorage.getItem("fsTotals")
+) {
+  console.log("📡 Local data missing — restoring from Firestore...");
   const snapshot = await db.collection("km6_dashboard_data").doc("dashboardTotals").get();
+
   if (snapshot.exists) {
     const data = snapshot.data();
-    localStorage.setItem("fsTotals", JSON.stringify(data.totals));
-    localStorage.setItem("overall", JSON.stringify(data.overall));
-    console.log("✅ Data restored from Firestore:", data);
+
+    // 🧾 Restore all key datasets
+    if (data.dataweb) localStorage.setItem("dataweb", JSON.stringify(data.dataweb));
+    if (data.pnetinv) localStorage.setItem("pnetinv", JSON.stringify(data.pnetinv));
+    if (data.invoicedate) localStorage.setItem("invoicedate", JSON.stringify(data.invoicedate));
+    if (data.fsTotals) localStorage.setItem("fsTotals", JSON.stringify(data.fsTotals));
+    if (data.overall) localStorage.setItem("overall", JSON.stringify(data.overall));
+
+    console.log("✅ Data fully restored from Firestore.");
+
+    // 🧮 Auto-refresh all major dashboard parts
+    computeBranchSummary();
+    renderFSTables();
+    renderDailySales();
+    autoSumTotals();
+    updateBranchTargets();
+    updateBranchSummaryCalculations();
+
+    // ✅ Update "Last Updated"
+    document.getElementById("lastUpdated").textContent =
+      "Last updated: " + (data.updated || new Date().toLocaleString());
   } else {
-    console.warn("⚠️ No data found in Firestore document 'dashboardTotals'.");
+    console.warn("⚠️ No dashboardTotals document found in Firestore.");
   }
+} else {
+  console.log("✅ LocalStorage data found — skipping restore.");
 }
 
-// ✅ Update timestamp label
+// ✅ Timestamp
 document.getElementById("lastUpdated").textContent =
   "Last updated: " + new Date().toLocaleString();
+
 
     renderFSTables();
   }
