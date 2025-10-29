@@ -203,7 +203,7 @@
     }
   });
 
-  // ✅ Upload Monthly Target Data (Target.xlsx)
+// ✅ Upload Monthly Target Data (Target.xlsx)
 // ================================================================
 document.getElementById("uploadTarget").addEventListener("click", async () => {
   const file = document.getElementById("fileTarget").files[0];
@@ -229,7 +229,7 @@ document.getElementById("uploadTarget").addEventListener("click", async () => {
 
     const branches = {};
     const fsTotals = {};
-    const fsTargetData = []; // ✅ define here!
+    const fsTargetData = [];
     let validCount = 0;
 
     for (const row of rows) {
@@ -237,49 +237,90 @@ document.getElementById("uploadTarget").addEventListener("click", async () => {
       let fsRaw = (row[fsKey] || "").toString().trim().toUpperCase();
       let rawVal = row[targetKey];
 
+      // --- Convert target value safely ---
       let val = 0;
       if (typeof rawVal === "number") val = rawVal;
       else if (typeof rawVal === "string") val = parseFloat(rawVal.replace(/[^\d.-]/g, "")) || 0;
       val = Number(val.toFixed(2));
-      if (!branchRaw || val <= 0) continue;
+      if ((!branchRaw && !fsRaw) || val <= 0) continue;
 
-      // Normalize branch names
+      // --- Normalize branch names ---
       if (branchRaw === "KM6") branchRaw = "BAGUIO";
       if (branchRaw === "KML") branchRaw = "LA UNION";
 
-      branches[branchRaw] = (branches[branchRaw] || 0) + val;
-      if (fsRaw) fsTotals[fsRaw] = (fsTotals[fsRaw] || 0) + val;
+      // --- Clean FS and branch strings ---
+      const cleanBranch = branchRaw.replace(/\s+/g, " ").trim();
+      const cleanFS = fsRaw.replace(/\s+/g, " ").trim();
 
-      // ✅ Store FS-level info (for the dashboard’s tertiary tables)
-      if (fsRaw) fsTargetData.push({ FS: fsRaw, Target: val });
+      // --- Handle possible missing FS column (common in your Target.xlsx) ---
+      // If FS column is blank but branch column looks like a name, use it as FS.
+      const isFSRow =
+        !cleanBranch.includes("KCM") &&
+        !cleanBranch.includes("TERTIARY") &&
+        !cleanBranch.includes("TOTAL") &&
+        !cleanBranch.includes("GRAND") &&
+        !["BAGUIO", "LA UNION", "KM6", "KML"].includes(cleanBranch);
 
-      validCount++;
+      // --- Assign FS ---
+      if (isFSRow && !fsRaw) fsRaw = cleanBranch;
+
+      // --- Save branch totals ---
+      if (["BAGUIO", "LA UNION"].includes(cleanBranch)) {
+        branches[cleanBranch] = (branches[cleanBranch] || 0) + val;
+      }
+
+      // --- Save FS totals ---
+      if (fsRaw) {
+        const fsName = fsRaw.toUpperCase().trim();
+        fsTotals[fsName] = (fsTotals[fsName] || 0) + val;
+        fsTargetData.push({ FS: fsName, Target: val });
+        validCount++;
+      }
+    }
+
+    // 🧹 Clean duplicates and invalid FS rows
+    const uniqueFS = [];
+    const seen = new Set();
+    for (const item of fsTargetData) {
+      if (item.FS && !seen.has(item.FS)) {
+        seen.add(item.FS);
+        uniqueFS.push(item);
+      }
     }
 
     // ✅ Save all target-related data together
-    const targets = { 
-      branches, 
-      fs: fsTotals, 
-      fsTargetData // 🔥 now safely defined above
-    };
+// ✅ Build final, verified target structure (no more fsTargetData)
+const targets = {
+  branches,
+  fs: fsTotals
+};
 
-    // ✅ Save locally
-    localStorage.setItem("targets", JSON.stringify(targets));
-    localStorage.setItem("fsTargetData", JSON.stringify(fsTargetData));
+// ✅ Save locally
+localStorage.setItem("targets", JSON.stringify(targets));
 
-    // ✅ Save to Firestore (for persistence across logins/devices)
-    await db.collection("km6_dashboard_data").doc("targets").set(targets);
+// ✅ Save to Firestore (for persistence across logins/devices)
+await db.collection("km6_dashboard_data").doc("targets").set(targets);
 
-    // ✅ Also save latest uploaded datasets (for cross-device sync)
-    await db.collection("km6_dashboard_data").doc("latest_data").set({
-      targets,
-      updatedAt: new Date().toISOString()
-    });
+// ✅ Also save latest uploaded datasets (for cross-device sync)
+await db.collection("km6_dashboard_data").doc("latest_data").set({
+  targets,
+  updatedAt: new Date().toISOString(),
+});
 
-    console.log("✅ Data successfully synced: targets + FS targets");
-    console.log("🎯 Targets saved successfully:", targets);
+console.log("✅ Data successfully synced: targets only (clean, accurate data)");
+console.log("🎯 Targets saved successfully:", targets);
 
-    status.innerHTML = `✅ Target sheet loaded (${rows.length} rows, ${validCount} valid targets)<br>
+// 🧠 For visibility in console
+console.table(
+  Object.entries(fsTotals).map(([FS, Target]) => ({ FS, Target }))
+);
+
+status.innerHTML = `✅ Target sheet loaded (${rows.length} rows, ${validCount} valid FS targets)<br>
+  Target uploaded successfully!<br>
+  Last updated: ${new Date().toLocaleString()}`;
+
+
+    status.innerHTML = `✅ Target sheet loaded (${rows.length} rows, ${validCount} valid FS targets)<br>
       Target uploaded successfully!<br>
       Last updated: ${new Date().toLocaleString()}`;
 

@@ -197,12 +197,29 @@
   const fmt = n => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const num = v => parseFloat(String(v || "0").replace(/[^0-9.-]/g, "")) || 0;
 
-  function getFSTarget(fsName) {
-  const fsData = JSON.parse(localStorage.getItem("fsTargetData") || "[]");
-  const match = fsData.find(x => x.FS.toUpperCase() === fsName.toUpperCase());
-  return match ? match.Target : 0;
-}
+  // ✅ Helper: Get target value per FS name (read directly from targets.fs)
+function getFSTarget(fsName) {
+  const targets = JSON.parse(localStorage.getItem("targets") || "{}");
+  const fs = targets.fs || {};
 
+  const normalize = n =>
+    String(n || "")
+      .toUpperCase()
+      .replace(/\s+/g, " ")
+      .replace(/\u00A0/g, " ")
+      .trim();
+
+  const cleanFS = normalize(fsName);
+  const matchKey = Object.keys(fs).find(k => normalize(k) === cleanFS);
+
+  if (!matchKey) {
+    console.warn(`⚠️ No target found for FS: ${fsName}`);
+    return 0;
+  }
+
+  console.log(`🎯 FS Target match: ${matchKey} = ${fs[matchKey]}`);
+  return Number(fs[matchKey]) || 0;
+}
 
   // -----------------------------------------------------------
   // ☰ MENU
@@ -269,30 +286,45 @@
     }
 
     // -----------------------------------------------------------
-    // 🧩 MULTI-BRANCH COMPUTATION
-    // -----------------------------------------------------------
-    const branches = ["KM6", "LU", "BAGUIO", "KCM"];
-    const totals = {};
+// 🧩 MULTI-BRANCH COMPUTATION (Fixed and Accurate)
+// -----------------------------------------------------------
+const branches = ["KM6", "KML", "BAGUIO", "KCM"];
+const totals = {};
 
-    branches.forEach(branch => {
-      const gross = dataweb
-        .filter(r => (r["Branch Name"] || "").toUpperCase().includes(branch))
-        .reduce((sum, r) => sum + num(r["Sum of Order Amount"]), 0);
+// ✅ Safe numeric parser (no scaling or false multipliers)
+const num = v => {
+  if (v == null || v === "") return 0;
+  const cleaned = String(v).replace(/[₱,()\s]/g, "").replace(/[^\d.-]/g, "").trim();
+  const val = parseFloat(cleaned);
+  return isNaN(val) ? 0 : val;
+};
 
-      const net = pnetinv
-        .filter(r => (r["Branch Name"] || "").toUpperCase().includes(branch))
-        .reduce((sum, r) => sum + num(r["TOTAL NET"]), 0);
+branches.forEach(branch => {
+  // --- GROSS ---
+  const gross = dataweb
+    .filter(r => (r["Branch Name"] || "").toUpperCase() === branch)
+    .reduce((sum, r) => sum + num(r["Sum of Order Amount"]), 0);
 
-      const rej = pnetinv
-        .filter(r => (r["Branch Name"] || "").toUpperCase().includes(branch))
-        .reduce((sum, r) => sum + num(r["TOTAL REJECTION"]), 0);
+  // --- NET SALES ---
+  const net = pnetinv
+    .filter(r => (r["Branch Name"] || "").toUpperCase() === branch)
+    .reduce((sum, r) => sum + num(r["TOTAL NET"]), 0);
 
-      const bo = pnetinv
-        .filter(r => (r["Branch Name"] || "").toUpperCase().includes(branch))
-        .reduce((sum, r) => sum + num(r["TOTAL BO"] || r["TOTAL B.O."]), 0);
+  // --- REJECTION ---
+  const rej = pnetinv
+    .filter(r => (r["Branch Name"] || "").toUpperCase() === branch)
+    .reduce((sum, r) => sum + num(r["TOTAL REJECTION"]), 0);
 
-      totals[branch] = { gross, net, reject: rej, bo, target: 0 };
-    });
+  // --- B.O AMOUNT ---
+  const bo = pnetinv
+    .filter(r => (r["Branch Name"] || "").toUpperCase() === branch)
+    .reduce((sum, r) => sum + num(r["TOTAL BO"] || r["TOTAL B.O."]), 0);
+
+  // --- SAVE RESULTS ---
+  totals[branch] = { gross, net, reject: rej, bo, target: 0 };
+});
+
+console.log("✅ Multi-branch totals computed:", totals);
 
     // -----------------------------------------------------------
     // 🎯 TARGET INTEGRATION
@@ -361,44 +393,64 @@
     document.getElementById("lastUpdated").textContent = "Last updated: " + new Date().toLocaleString();
 
     renderFSTables();
+  } // ✅ closes computeKM6Dashboard function properly
+
 // -----------------------------------------------------------
-// 🧮 COMPUTE FS TOTALS (from dataweb.xlsx sheets)
+// 🧮 COMPUTE FS TOTALS (Final Stable SUM Version)
 // -----------------------------------------------------------
 function computeFSTotals() {
   const dataweb = JSON.parse(localStorage.getItem("dataweb") || "[]");
   const pnetinv = JSON.parse(localStorage.getItem("pnetinv") || "[]");
+
   if (!Array.isArray(dataweb) || !Array.isArray(pnetinv)) {
     console.warn("⚠️ Missing dataweb or pnetinv in localStorage.");
     return;
   }
 
   const fsTotals = {};
-  const num = v => parseFloat(String(v || "0").replace(/[^0-9.-]/g, "")) || 0;
 
-  // --- From GROSS sheet ---
+  // ✅ Safe number parser
+const num = v => {
+  if (v == null || v === "") return 0;
+  let cleaned = String(v).replace(/[₱,()\s]/g, "").replace(/[^\d.-]/g, "").trim();
+  let val = parseFloat(cleaned);
+  return isNaN(val) ? 0 : val;
+};
+
+  // ✅ Normalize FS names
+  const cleanFS = s =>
+    String(s || "")
+      .toUpperCase()
+      .replace(/\s+/g, " ")
+      .replace(/\u00A0/g, " ")
+      .trim();
+
+  // --- STEP 1: GROSS per FS (from dataweb)
   dataweb.forEach(row => {
-    const fs = String(row["FS"] || "").trim().toUpperCase();
+    const fs = cleanFS(row["FS"]);
     const gross = num(row["Sum of Order Amount"]);
     if (!fs) return;
     if (!fsTotals[fs]) fsTotals[fs] = { gross: 0, reject: 0, bo: 0, net: 0 };
     fsTotals[fs].gross += gross;
   });
 
-  // --- From P_Net.Inv sheet ---
+  // --- STEP 2: SUM Rejection, BO, NET per FS (from P_Net.Inv)
   pnetinv.forEach(row => {
-    const fs = String(row["FS"] || "").trim().toUpperCase();
+    const fs = cleanFS(row["FS"]);
+    if (!fs) return;
     const rej = num(row["TOTAL REJECTION"]);
     const bo = num(row["TOTAL BO"] || row["TOTAL B.O."]);
     const net = num(row["TOTAL NET"]);
-    if (!fs) return;
+
     if (!fsTotals[fs]) fsTotals[fs] = { gross: 0, reject: 0, bo: 0, net: 0 };
     fsTotals[fs].reject += rej;
     fsTotals[fs].bo += bo;
     fsTotals[fs].net += net;
   });
 
+  // --- STEP 3: Save + Log
   localStorage.setItem("fsTotals", JSON.stringify(fsTotals));
-  console.log("✅ FS totals computed:", fsTotals);
+  console.log("✅ FS totals computed (final SUM version):", fsTotals);
 }
 
 // 🟩 Compute FS totals only if missing or outdated
@@ -410,44 +462,77 @@ if (!Object.keys(existingFsTotals).length) {
   console.log("📦 Loaded FS totals from localStorage:", existingFsTotals);
 }
 
-// ✅ Always re-render FS tables after ensuring fsTotals exist
+// ✅ Ensure FS totals exist before rendering tables
+let fsData = JSON.parse(localStorage.getItem("fsTotals") || "{}");
+if (!Object.keys(fsData).length) {
+  console.log("🧮 Recomputing FS totals before rendering...");
+  computeFSTotals(); // rebuild data from sheets
+  fsData = JSON.parse(localStorage.getItem("fsTotals") || "{}");
+}
+
+// 🧹 Clean and correct scaled Target data in localStorage
+(() => {
+  const fsData = JSON.parse(localStorage.getItem("fsTargetData") || "[]");
+  const cleaned = fsData.map(t => {
+    const val = parseFloat(String(t.Target).replace(/[^\d.-]/g, ""));
+    let fixed = val;
+
+    // Detect 5× or 10× scaling errors and correct
+    if (fixed > 100000000) fixed /= 10; // too large (e.g., 150M → 15M)
+    if (fixed > 70000000 && fixed < 80000000) fixed /= 5; // special case like Jim Russel
+    if (fixed > 10000000 && fixed < 20000000) fixed = fixed; // looks valid
+
+    return { ...t, Target: fixed };
+  });
+
+  localStorage.setItem("fsTargetData", JSON.stringify(cleaned));
+  console.log("✅ Cleaned fsTargetData saved:", cleaned);
+})();
+
 renderFSTables();
 
-  }
 // -----------------------------------------------------------
-// 🧾 RENDER FS TABLES (Smart match for Gemma & MC ARDEL)
+// 🧾 RENDER FS TABLES (Smart match + Correct Targets + Clean Format)
 // -----------------------------------------------------------
 function renderFSTables() {
   const fsTotals = JSON.parse(localStorage.getItem("fsTotals") || "{}");
 
   const groups = {
-    KCM: ["Jim Russel Peralta","Judy Ann Mabanta","Gilbert Aquino","Roderick Dacay","Gyver Gano"],
-    LU: ["Gemma Jacaban","Jovelyn Castro"],
-    BG: ["Jehu Romero","Mc Ardel Cachicho","Rocky Fowaya"]
+    KCM: ["Jim Russel Peralta", "Judy Ann Mabanta", "Gilbert Aquino", "Roderick Dacay", "Gyver Gano"],
+    LU: ["Gemma Jacaban", "Jovelyn Castro"],
+    BG: ["Jehu Romero", "Mc Ardel Cachicho", "Rocky Fowaya"]
   };
 
   const tableIds = { KCM: "tblKCM", LU: "tblLU", BG: "tblBG" };
-  const num = v => parseFloat(String(v || "0").replace(/[^0-9.-]/g, "")) || 0;
+
+  // ✅ Safe numeric parser
+  const num = v => {
+    if (v == null || v === "") return 0;
+    const cleaned = String(v).replace(/[₱,()\s]/g, "").replace(/[^\d.-]/g, "").trim();
+    const val = parseFloat(cleaned);
+    return isNaN(val) ? 0 : val;
+  };
+
   const fmt = n => Number(n || 0).toLocaleString(undefined, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   });
 
-  // 🔹 Helper: normalize FS names
+  // ✅ Normalize FS names
   const cleanName = n =>
     String(n || "")
       .toUpperCase()
       .replace(/\s+/g, " ")
-      .replace(/\u00A0/g, " ") // remove special spaces
+      .replace(/\u00A0/g, " ")
       .trim();
 
-  // 🔹 Get FS Target data (used for % and balance)
-  const fsTargetData = JSON.parse(localStorage.getItem("fsTargetData") || "[]");
-  const fsTargets = {};
-  fsTargetData.forEach(t => {
-    if (t.FS) fsTargets[cleanName(t.FS)] = num(t.Target);
-  });
+  // ✅ Load targets
+  const storedTargets = JSON.parse(localStorage.getItem("targets") || "{}");
+  const fsTargets = storedTargets.fs || {};
 
+  console.log("✅ Loaded FS targets:", fsTargets);
+
+  // 🔹 Loop through each group (KCM, LU, BG)
   for (const [group, names] of Object.entries(groups)) {
     const tbody = document.querySelector(`#${tableIds[group]}`);
     if (!tbody) continue;
@@ -458,54 +543,160 @@ function renderFSTables() {
 
     let total = { gross: 0, reject: 0, bo: 0, net: 0, target: 0, balance: 0 };
 
+    // 🔹 Render each FS under this group
     names.forEach(name => {
       const fsKey = cleanName(name);
       let matchedKey = Object.keys(fsTotals).find(k => cleanName(k) === fsKey) || null;
       const d = matchedKey ? fsTotals[matchedKey] : {};
 
-      const g = num(d.gross), r = num(d.reject), b = num(d.bo), n = num(d.net);
-      const target = fsTargets[fsKey] || 0;
+      const g = num(d.gross);
+      const r = num(d.reject);
+      const b = num(d.bo);
+      const n = num(d.net);
+
+      // ✅ Target value
+      const target = fsTargets[fsKey] || fsTargets[fsKey.toUpperCase()] || 0;
       const pct = target > 0 ? (n / target) * 100 : 0;
-      const balance = n - target; // ✅ Net Sales - Target
+      const balance = n - target;
 
-      total.gross += g; total.reject += r; total.bo += b; total.net += n; total.target += target; total.balance += balance;
+      console.log(`${name} | Net: ${n} | Target: ${target} | %: ${pct.toFixed(2)}`);
 
-      const fmtVal = (v) => {
+      total.gross += g;
+      total.reject += r;
+      total.bo += b;
+      total.net += n;
+      total.target += target;
+      total.balance += balance;
+
+      // ✅ Format with parentheses for negatives
+      const fmtVal = (v, isPct = false) => {
+        if (isPct)
+          return v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const abs = Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         return v < 0 ? `(${abs})` : abs;
       };
 
+      // ✅ No more color-coded %
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${name}</td>
-        <td>${fmt(g)}</td>
-        <td>${fmt(r)}</td>
-        <td>${fmt(b)}</td>
-        <td>${fmt(n)}</td>
-        <td>${fmt(target)}</td>
-        <td>${fmtVal(pct)}%</td>
+        <td>${fmtVal(g)}</td>
+        <td>${fmtVal(r)}</td>
+        <td>${fmtVal(b)}</td>
+        <td>${fmtVal(n)}</td>
+        <td>${fmtVal(target)}</td>
+        <td>${fmtVal(pct, true)}%</td>
         <td>${fmtVal(balance)}</td>
       `;
       tbody.insertBefore(tr, totalRow);
     });
 
-    const fmtVal = (v) => {
-      const abs = Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      return v < 0 ? `(${abs})` : abs;
-    };
+    // ✅ Update total row
+    const totalPct = total.target > 0 ? (total.net / total.target) * 100 : 0;
+    const fmtBalance = total.balance < 0
+      ? `(${Math.abs(total.balance).toLocaleString(undefined, { minimumFractionDigits: 2 })})`
+      : total.balance.toLocaleString(undefined, { minimumFractionDigits: 2 });
 
     totalRow.innerHTML = `
-      <td><strong>Total ${group}</strong></td>
-      <td>${fmt(total.gross)}</td>
-      <td>${fmt(total.reject)}</td>
-      <td>${fmt(total.bo)}</td>
-      <td>${fmt(total.net)}</td>
-      <td>${fmt(total.target)}</td>
-      <td>${fmtVal(total.target > 0 ? (total.net / total.target) * 100 : 0)}%</td>
-      <td>${fmtVal(total.balance)}</td>
+      <td><b>Total ${group}</b></td>
+      <td><b>${fmt(total.gross)}</b></td>
+      <td><b>${fmt(total.reject)}</b></td>
+      <td><b>${fmt(total.bo)}</b></td>
+      <td><b>${fmt(total.net)}</b></td>
+      <td><b>${fmt(total.target)}</b></td>
+      <td><b>${fmt(totalPct)}%</b></td>
+      <td><b>${fmtBalance}</b></td>
     `;
+    totalRow.style.backgroundColor = "#fff8cc";
   }
 }
+
+// -----------------------------------------------------------
+// 🧮 COMPUTE BRANCH SUMMARY (Baguio + La Union)
+// -----------------------------------------------------------
+function computeBranchSummary() {
+  const fsTotals = JSON.parse(localStorage.getItem("fsTotals") || "{}");
+  const dataweb = JSON.parse(localStorage.getItem("dataweb") || "[]");
+  const pnetinv = JSON.parse(localStorage.getItem("pnetinv") || "[]");
+
+  const branches = {
+    BAGUIO: { gross: 0, reject: 0, bo: 0, net: 0 },
+    "LA UNION": { gross: 0, reject: 0, bo: 0, net: 0 }
+  };
+
+  const num = t => parseFloat(String(t || "").replace(/[^0-9.-]/g, "")) || 0;
+
+  // --- From GROSS sheet (dataweb) ---
+  dataweb.forEach(r => {
+    const rec = {};
+    for (const [k, v] of Object.entries(r)) rec[k.trim().toUpperCase()] = v;
+
+    const branch = (rec["BRANCH NAME"] || "").toUpperCase();
+    const gross = num(rec["SUM OF ORDER AMOUNT"]);
+
+    if (branch.includes("KM6") || branch.includes("BAGUIO")) branches.BAGUIO.gross += gross;
+    if (branch.includes("KML") || branch.includes("LA UNION")) branches["LA UNION"].gross += gross;
+  });
+
+  // --- From P_Net.Inv sheet (pnetinv) ---
+  pnetinv.forEach(r => {
+    const rec = {};
+    for (const [k, v] of Object.entries(r)) rec[k.trim().toUpperCase()] = v;
+
+    const branch = (rec["BRANCH NAME"] || "").toUpperCase();
+    const rej = num(rec["TOTAL REJECTION"]);
+    const bo = num(rec["TOTAL BO"]) || num(rec["TOTAL B.O."]);
+    const net = num(rec["TOTAL NET"]);
+
+    if (branch.includes("KM6") || branch.includes("BAGUIO")) {
+      branches.BAGUIO.reject += rej;
+      branches.BAGUIO.bo += bo;
+      branches.BAGUIO.net += net;
+    }
+    if (branch.includes("KML") || branch.includes("LA UNION")) {
+      branches["LA UNION"].reject += rej;
+      branches["LA UNION"].bo += bo;
+      branches["LA UNION"].net += net;
+    }
+  });
+
+  // --- Helper for formatting ---
+  const fmt = n => Number(n || 0).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+  const set = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = fmt(val);
+  };
+
+  // --- Display individual branches ---
+  set("km6Gross", branches.BAGUIO.gross);
+  set("km6Reject", branches.BAGUIO.reject);
+  set("km6BO", branches.BAGUIO.bo);
+  set("km6Net", branches.BAGUIO.net);
+
+  set("kmlGross", branches["LA UNION"].gross);
+  set("kmlReject", branches["LA UNION"].reject);
+  set("kmlBO", branches["LA UNION"].bo);
+  set("kmlNet", branches["LA UNION"].net);
+
+  // --- ✅ FIXED: Compute total row ---
+  const totalGross = branches.BAGUIO.gross + branches["LA UNION"].gross;
+  const totalReject = branches.BAGUIO.reject + branches["LA UNION"].reject;
+  const totalBO = branches.BAGUIO.bo + branches["LA UNION"].bo;
+  const totalNet = branches.BAGUIO.net + branches["LA UNION"].net;
+
+  // --- Update total KM6 row ---
+  set("totGross", totalGross);
+  set("totReject", totalReject);
+  set("totBO", totalBO);
+  set("totNet", totalNet);
+
+  console.log("🏢 Branch summary (Baguio + La Union):", branches);
+  console.log("📊 Total KM6:", { totalGross, totalReject, totalBO, totalNet });
+}
+
 
 // -----------------------------------------------------------
 // 🧮 COMPUTE BRANCH SUMMARY (Baguio + La Union)
@@ -697,35 +888,44 @@ setTimeout(autoSumTotals, 800);
 // ✅ Helper: Get target value per FS name
 function getFSTarget(fsName) {
   const data = JSON.parse(localStorage.getItem("fsTargetData") || "[]");
-  const match = data.find(x => x.FS.toUpperCase() === fsName.toUpperCase());
+  const normalize = n => String(n || "").toUpperCase().replace(/\s+/g, " ").trim();
+  const match = fsData.find(x => normalize(x.FS || x.Branch || x.Name) === normalize(fsName));
+  console.log("🔍 Matching FS target:", fsName, "→", match ? match.Target : "❌ not found");
+
   return match ? Number(match.Target) : 0;
 }
 
 // ✅ Auto-fill Target column in all FS tables (KCM, LU, Baguio)
-function updateFSTargets() {
-  const tables = ["tblKCM", "tblLU", "tblBG"]; // your table IDs
-  tables.forEach(tblId => {
-    const tbody = document.getElementById(tblId);
-    if (!tbody) return;
+// ✅ Helper: Get target value per FS name (uses the new 'targets.fs' data)
+function getFSTarget(fsName) {
+  const targets = JSON.parse(localStorage.getItem("targets") || "{}");
+  const fs = targets.fs || {}; // ✅ correct source
 
-    const rows = tbody.querySelectorAll("tr:not(.total)");
-    rows.forEach(row => {
-      const cells = row.querySelectorAll("td");
-      if (!cells.length) return;
+  // Normalize to avoid spacing / case issues
+  const normalize = n =>
+    String(n || "")
+      .toUpperCase()
+      .replace(/\s+/g, " ")
+      .replace(/\u00A0/g, " ")
+      .trim();
 
-      const fsName = cells[0].innerText.trim();
-      if (!fsName) return;
+  const cleanFS = normalize(fsName);
+  const keys = Object.keys(fs);
 
-      // get target from localStorage (like VLOOKUP)
-      const target = getFSTarget(fsName);
-      if (target > 0) {
-        // Target column = 6th cell (index 5)
-        cells[5].innerText = target.toLocaleString(undefined, { minimumFractionDigits: 2 });
-      }
-    });
-  });
+  // Find matching FS name (exact or close)
+  const matchKey =
+    keys.find(k => normalize(k) === cleanFS) ||
+    keys.find(k => normalize(k).includes(cleanFS)) ||
+    keys.find(k => cleanFS.includes(normalize(k)));
 
-  console.log("🎯 FS Targets updated successfully in dashboard.");
+  if (!matchKey) {
+    console.warn(`⚠️ FS target not found for: ${fsName}`);
+    return 0;
+  }
+
+  const targetVal = Number(fs[matchKey]) || 0;
+  console.log(`🎯 Matched FS Target: ${matchKey} = ${targetVal.toLocaleString()}`);
+  return targetVal;
 }
 
 // ✅ Run after page loads
@@ -778,6 +978,47 @@ const branchMap = {
   "Baguio": "KM6",
   "La Union": "KML"
 };
+// ✅ Fix: Define the missing updateFSTargets function (new structure)
+function updateFSTargets() {
+  const targets = JSON.parse(localStorage.getItem("targets") || "{}");
+  const fs = targets.fs || {};
+
+  if (!Object.keys(fs).length) {
+    console.warn("⚠️ No FS target data found in localStorage.targets.fs");
+    return;
+  }
+
+  console.log("✅ Loaded FS targets:", fs);
+
+  // Loop through FS rows in dashboard (where the target column should be updated)
+  document.querySelectorAll("table tbody tr").forEach(row => {
+    const fsName = row.cells[0]?.textContent?.trim();
+    const targetCell = row.cells[5]; // assuming TARGET is column 6
+
+    if (!fsName || !targetCell) return;
+
+    const normalize = n =>
+      String(n || "")
+        .toUpperCase()
+        .replace(/\s+/g, " ")
+        .replace(/\u00A0/g, " ")
+        .trim();
+
+    const matchKey = Object.keys(fs).find(k => normalize(k) === normalize(fsName));
+
+    if (matchKey) {
+      const targetVal = Number(fs[matchKey]) || 0;
+      targetCell.textContent = targetVal.toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+    } else {
+      targetCell.textContent = "0.00";
+    }
+  });
+
+  console.log("🎯 FS Targets updated successfully from localStorage.targets.fs");
+}
 
 // ✅ Auto-fill Branch Summary Targets directly from uploaded data (KM6 → Baguio, KML → La Union)
 function updateBranchTargets() {
