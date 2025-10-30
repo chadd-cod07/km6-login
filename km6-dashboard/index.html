@@ -430,14 +430,41 @@ async function restoreDashboardFromCloud() {
     const data = snapshot.data();
     console.log("✅ Dashboard data found in Firestore:", data);
 
-    // ✅ Restore all major datasets to localStorage
-    if (data.dataweb) localStorage.setItem("dataweb", JSON.stringify(data.dataweb));
-    if (data.pnetinv) localStorage.setItem("pnetinv", JSON.stringify(data.pnetinv));
-    if (data.invoicedate) localStorage.setItem("invoicedate", JSON.stringify(data.invoicedate));
-    if (data.fsTotals) localStorage.setItem("fsTotals", JSON.stringify(data.fsTotals));
-    if (data.overall) localStorage.setItem("overall", JSON.stringify(data.overall));
+    // ✅ Convert Firestore object maps into arrays for dashboard compatibility
+    function objToArray(obj) {
+      if (!obj || typeof obj !== "object") return [];
+      return Object.entries(obj).map(([key, val]) => ({ Branch: key, ...val }));
+    }
 
-    console.log("💾 Data restored to localStorage from Firebase.");
+    // ✅ Restore all major datasets to localStorage (mapped properly)
+    if (data.latestData) {
+      const arr = Array.isArray(data.latestData)
+        ? data.latestData
+        : objToArray(data.latestData);
+      localStorage.setItem("dataweb", JSON.stringify(arr));
+    }
+
+    if (data.latest_data) {
+      const arr = Array.isArray(data.latest_data)
+        ? data.latest_data
+        : objToArray(data.latest_data);
+      localStorage.setItem("pnetinv", JSON.stringify(arr));
+    }
+
+    if (data.invoiceDate) {
+      const arr = Array.isArray(data.invoiceDate)
+        ? data.invoiceDate
+        : objToArray(data.invoiceDate);
+      localStorage.setItem("invoicedate", JSON.stringify(arr));
+    }
+
+    if (data.fsTotals)
+      localStorage.setItem("fsTotals", JSON.stringify(data.fsTotals));
+
+    if (data.targets)
+      localStorage.setItem("targets", JSON.stringify(data.targets));
+
+    console.log("💾 Data restored to localStorage from Firebase (converted if needed).");
 
     // ✅ Re-render everything (functions only if they exist)
     if (typeof renderDailySales === "function") renderDailySales();
@@ -445,7 +472,8 @@ async function restoreDashboardFromCloud() {
     if (typeof renderFSTables === "function") renderFSTables();
     if (typeof autoSumTotals === "function") autoSumTotals();
     if (typeof updateBranchTargets === "function") updateBranchTargets();
-    if (typeof updateBranchSummaryCalculations === "function") updateBranchSummaryCalculations();
+    if (typeof updateBranchSummaryCalculations === "function")
+      updateBranchSummaryCalculations();
 
     // ✅ Update timestamp label
     const lastUpdated = document.getElementById("lastUpdated");
@@ -458,6 +486,7 @@ async function restoreDashboardFromCloud() {
     console.error("❌ Error restoring data from Firebase:", err);
   }
 }
+
 
 // -----------------------------------------------------------
 // 🟢 Auto-Restore from Firebase if no local data (Mobile First Load)
