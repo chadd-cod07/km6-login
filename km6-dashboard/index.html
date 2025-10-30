@@ -181,11 +181,11 @@
 
 <script>
 /* ------------------------------------------------------------
-   🔥 Firebase Initialization (Compat SDK) — Stable Mobile/Desktop
+   🔥 Firebase Initialization + Live Sync (KM6 Dashboard)
    ------------------------------------------------------------ */
 (function initFirebase() {
   if (!window.firebase) {
-    console.error("❌ Firebase SDK not found.");
+    console.error("❌ Firebase SDK not found!");
     return;
   }
 
@@ -198,48 +198,129 @@
     appId: "1:309068846407:web:68d51a21f6ab238fa1a862",
   };
 
-  // ✅ Initialize Firebase (safe double-check)
+  // ✅ Initialize Firebase safely once
   if (firebase.apps.length === 0) firebase.initializeApp(firebaseConfig);
   window.db = firebase.firestore();
   console.log("🔥 Firebase initialized successfully.");
 
-  // ✅ Enable Real-Time Firestore Sync (PC ↔ Mobile)
+  // ------------------------------------------------------------
+  // 🔁 Real-Time Sync (PC ↔ Mobile)
+  // ------------------------------------------------------------
   try {
     const docRef = db.collection("km6_dashboard_data").doc("dashboardTotals");
     docRef.onSnapshot((doc) => {
       if (!doc.exists) {
-        console.warn("⚠️ dashboardTotals document not found.");
+        console.warn("⚠️ No dashboardTotals document found.");
         return;
       }
 
       const data = doc.data();
-      console.log("📡 Live Firebase update received!", data);
+      console.log("📡 Live Firebase update received:", data);
 
-      // Update localStorage with latest Firestore data
-      if (data.dataweb) localStorage.setItem("dataweb", JSON.stringify(data.dataweb));
-      if (data.pnetinv) localStorage.setItem("pnetinv", JSON.stringify(data.pnetinv));
-      if (data.invoicedate) localStorage.setItem("invoicedate", JSON.stringify(data.invoicedate));
-      if (data.fsTotals) localStorage.setItem("fsTotals", JSON.stringify(data.fsTotals));
-      if (data.targets) localStorage.setItem("targets", JSON.stringify(data.targets));
+      // ✅ Map Firestore fields → localStorage
+      if (data.latestData)
+        localStorage.setItem("dataweb", JSON.stringify(data.latestData));
 
-      // Update "Last Updated" time
+      if (data.latest_data)
+        localStorage.setItem("pnetinv", JSON.stringify(data.latest_data));
+
+      if (data.invoiceDate)
+        localStorage.setItem("invoicedate", JSON.stringify(data.invoiceDate));
+
+      if (data.fsTotals)
+        localStorage.setItem("fsTotals", JSON.stringify(data.fsTotals));
+
+      if (data.targets)
+        localStorage.setItem("targets", JSON.stringify(data.targets));
+
+      console.log("💾 LocalStorage synced with Firestore successfully.");
+
+      // ✅ Update timestamp in header
       const updated = data.updated || new Date().toLocaleString();
       const el = document.getElementById("lastUpdated");
       if (el) el.textContent = "Last updated: " + updated;
 
-      // Re-render if dashboard is loaded
+      // ✅ Re-render dashboard instantly
       if (typeof recomputeAndRenderAll === "function") {
         recomputeAndRenderAll();
       }
-
-      console.log("✅ Dashboard synced and refreshed in real time.");
     });
 
-    console.log("✅ Firestore live sync listener active.");
+    console.log("✅ Live Firebase sync listener ready.");
   } catch (err) {
-    console.error("❌ Firestore live sync setup failed:", err);
+    console.error("❌ Firestore sync setup error:", err);
   }
 })();
+
+/* ------------------------------------------------------------
+   📲 One-Time Restore (Mobile First Load)
+   ------------------------------------------------------------ */
+async function restoreDashboardFromCloud() {
+  try {
+    console.log("📥 Fetching dashboard data from Firestore...");
+    const docRef = db.collection("km6_dashboard_data").doc("dashboardTotals");
+    const snapshot = await docRef.get();
+
+    if (!snapshot.exists) {
+      console.warn("⚠️ No dashboardTotals found in Firestore.");
+      return;
+    }
+
+    const data = snapshot.data();
+    console.log("✅ Dashboard data retrieved:", data);
+
+    // ✅ Map Firestore → localStorage
+    if (data.latestData)
+      localStorage.setItem("dataweb", JSON.stringify(data.latestData));
+    if (data.latest_data)
+      localStorage.setItem("pnetinv", JSON.stringify(data.latest_data));
+    if (data.invoiceDate)
+      localStorage.setItem("invoicedate", JSON.stringify(data.invoiceDate));
+    if (data.fsTotals)
+      localStorage.setItem("fsTotals", JSON.stringify(data.fsTotals));
+    if (data.targets)
+      localStorage.setItem("targets", JSON.stringify(data.targets));
+
+    console.log("💾 Data restored locally.");
+
+    // ✅ Update timestamp label
+    const lastUpdated = document.getElementById("lastUpdated");
+    if (lastUpdated)
+      lastUpdated.textContent =
+        "Last updated: " + (data.updated || new Date().toLocaleString());
+
+    // ✅ Recompute and render everything
+    if (typeof recomputeAndRenderAll === "function") {
+      recomputeAndRenderAll();
+    }
+
+    console.log("🎯 Dashboard fully restored & rendered!");
+  } catch (err) {
+    console.error("❌ Error restoring data from Firestore:", err);
+  }
+}
+
+/* ------------------------------------------------------------
+   🟢 Force Cloud Restore on Page Load (for Mobile)
+   ------------------------------------------------------------ */
+window.addEventListener("load", async () => {
+  const hasData =
+    localStorage.getItem("dataweb") &&
+    localStorage.getItem("pnetinv") &&
+    localStorage.getItem("invoicedate");
+
+  if (!hasData) {
+    console.log("📱 No local data found — restoring from Firestore...");
+    await restoreDashboardFromCloud();
+  } else {
+    console.log("💾 Using cached data — waiting for live sync...");
+  }
+
+  // Always render once (for speed)
+  if (typeof recomputeAndRenderAll === "function") {
+    await recomputeAndRenderAll();
+  }
+});
 
 
 /* ------------------------------------------------------------
