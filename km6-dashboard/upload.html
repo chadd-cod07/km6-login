@@ -186,6 +186,15 @@
       await db.collection("km6_dashboard_data").doc("dashboardTotals").set(totals);
       await db.collection("km6_dashboard_data").doc("fsTotals").set(fsTotals);
       await db.collection("km6_dashboard_data").doc("invoiceDate").set(invoiceDate);
+      await db.collection("km6_dashboard_data").doc("latestData").set({
+  dashboardTotals: totals,
+  fsTotals,
+  invoiceDate,
+  dataweb: grossRows,
+  pnetinv: netRows,
+  invoicedate: invRows,
+  timestamp: new Date().toISOString()
+});
 
       localStorage.setItem("dashboardTotals", JSON.stringify(totals));
       localStorage.setItem("fsTotals", JSON.stringify(fsTotals));
