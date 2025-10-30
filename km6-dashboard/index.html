@@ -352,6 +352,7 @@ async function restoreDashboardFromCloud() {
 
     const data = doc.data() || {};
     console.log("📥 Restoring dashboard from Firestore...", data);
+    console.log("✅ Firebase sync complete — local and cloud data now match.");
 
     // ✅ Super-safe parser: handles undefined, empty, invalid JSON, or object
     const parseSafe = (value, fallback = {}) => {
@@ -1060,13 +1061,17 @@ window.addEventListener("DOMContentLoaded", async () => {
       localStorage.getItem("pnetinv") &&
       localStorage.getItem("invoicedate");
 
-    if (!hasData) {
-      console.log("📱 No local data found — restoring from Firebase...");
-      await restoreDashboardFromCloud(); // not forced
-    } else {
-      console.log("☁️ Checking Firebase for latest dashboard data...");
-      await restoreDashboardFromCloud();
-    }
+if (!hasData) {
+  console.log("📥 No local data found — restoring from Firebase...");
+  await restoreDashboardFromCloud(); // first-time load
+} else {
+  console.log("💾 Local data found — loading instantly...");
+  setText("lastUpdated", "Last updated: " + new Date().toLocaleString(), { asNumber: false });
+
+  // ✅ Always check Firestore for new data (refresh background)
+  console.log("☁️ Checking Firebase for latest dashboard data...");
+  await restoreDashboardFromCloud();
+}
 
     // 🧮 Recompute & render everything
     await recomputeAndRenderAll();
