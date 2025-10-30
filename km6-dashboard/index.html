@@ -384,34 +384,11 @@ async function restoreDashboardFromCloud() {
 }
 
 // -----------------------------------------------------------
-// 🟢 AUTO RUN on page load (for Mobile/Desktop refresh)
+// 🟢 FORCE CLOUD RESTORE ON PAGE LOAD (for mobile sync)
 // -----------------------------------------------------------
 window.addEventListener("load", async () => {
-  const getSafe = (key) => {
-    try {
-      const val = localStorage.getItem(key);
-      return val && val !== "undefined" ? JSON.parse(val) : [];
-    } catch {
-      return [];
-    }
-  };
-
-  const dataweb = getSafe("dataweb");
-  const pnetinv = getSafe("pnetinv");
-  const invoicedate = getSafe("invoicedate");
-
-  // Restore if any critical dataset is missing or empty
-  const needsRestore =
-    !Array.isArray(dataweb) || dataweb.length === 0 ||
-    !Array.isArray(pnetinv) || pnetinv.length === 0 ||
-    !Array.isArray(invoicedate) || invoicedate.length === 0;
-
-  if (needsRestore) {
-    console.log("📱 No valid local data found — restoring from Firebase...");
-    await restoreDashboardFromCloud();
-  } else {
-    console.log("💾 Local data found — skipping Firebase restore.");
-  }
+  console.log("🌐 Forcing dashboard sync from Firestore...");
+  await restoreDashboardFromCloud();
 });
 
 
