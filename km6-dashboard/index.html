@@ -1,5 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
+<button onclick="restoreDashboardFromCloud()" style="margin:10px; padding:5px 10px; background:#00897B; color:white; border:none; border-radius:6px;">
+  🔄 Sync from Cloud
+</button>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -190,10 +193,7 @@
   };
   if (firebase.apps.length === 0) firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
-// -----------------------------------------------------------
-// 📲 AUTO RESTORE DASHBOARD DATA FROM FIREBASE (FOR MOBILE)
-// -----------------------------------------------------------
-async function restoreDashboardFromCloud() {
+async function restoreDashboardFromCloud(force = false) {
   try {
     console.log("📡 Checking Firestore for saved dashboard data...");
     const docRef = db.collection("km6_dashboard_data").doc("dashboardTotals");
@@ -205,34 +205,41 @@ async function restoreDashboardFromCloud() {
     }
 
     const data = snapshot.data();
-    console.log("✅ Dashboard data found in Firestore:", data);
+    console.log("✅ Cloud data loaded:", data);
 
-    // ✅ Restore all major datasets to localStorage
+    // If not forced and localStorage already has matching updated time, skip
+    const localUpdated = JSON.parse(localStorage.getItem("lastSyncTime") || "null");
+    if (!force && localUpdated === data.updated) {
+      console.log("🟢 Already up to date — no restore needed.");
+      return;
+    }
+
+    // ✅ Restore all datasets
     if (data.dataweb) localStorage.setItem("dataweb", JSON.stringify(data.dataweb));
     if (data.pnetinv) localStorage.setItem("pnetinv", JSON.stringify(data.pnetinv));
     if (data.invoicedate) localStorage.setItem("invoicedate", JSON.stringify(data.invoicedate));
     if (data.fsTotals) localStorage.setItem("fsTotals", JSON.stringify(data.fsTotals));
+    if (data.targets) localStorage.setItem("targets", JSON.stringify(data.targets));
     if (data.overall) localStorage.setItem("overall", JSON.stringify(data.overall));
 
-    console.log("💾 Data restored to localStorage from Firebase.");
+    localStorage.setItem("lastSyncTime", JSON.stringify(data.updated));
 
-    // ✅ Re-render everything
-    if (typeof renderDailySales === "function") renderDailySales();
-    if (typeof computeBranchSummary === "function") computeBranchSummary();
-    if (typeof renderFSTables === "function") renderFSTables();
-    if (typeof autoSumTotals === "function") autoSumTotals();
-    if (typeof updateBranchTargets === "function") updateBranchTargets();
-    if (typeof updateBranchSummaryCalculations === "function") updateBranchSummaryCalculations();
+    // ✅ Refresh all dashboard components
+    renderDailySales();
+    computeBranchSummary();
+    renderFSTables();
+    autoSumTotals();
+    updateBranchTargets();
+    updateBranchSummaryCalculations();
 
-    // ✅ Update timestamp label
-    const lastUpdated = document.getElementById("lastUpdated");
-    if (lastUpdated)
-      lastUpdated.textContent =
-        "Last updated: " + (data.updated || new Date().toLocaleString());
+    // ✅ Update timestamp
+    const label = document.getElementById("lastUpdated");
+    if (label)
+      label.textContent = "Last updated: " + (data.updated || new Date().toLocaleString());
 
-    console.log("🎯 Dashboard fully restored and refreshed!");
+    console.log("🎯 Dashboard restored and refreshed successfully!");
   } catch (err) {
-    console.error("❌ Error restoring data from Firebase:", err);
+    console.error("❌ Error restoring data from Firestore:", err);
   }
 }
 
@@ -440,7 +447,7 @@ console.log("✅ Multi-branch totals computed:", totals);
       change("prevKM6", "currKM6", "changeKM6", km6Prev, km6Curr);
     }
 // -----------------------------------------------------------
-// 🔄 FIREBASE SYNC (Upload + Auto-Restore + Auto-Refresh)
+// 🔄 FIREBASE SYNC (Upload + Include All Data)
 // -----------------------------------------------------------
 await db.collection("km6_dashboard_data").doc("dashboardTotals").set({
   totals,
@@ -449,9 +456,13 @@ await db.collection("km6_dashboard_data").doc("dashboardTotals").set({
   pnetinv,
   invoicedate,
   fsTotals: JSON.parse(localStorage.getItem("fsTotals") || "{}"),
+  targets: JSON.parse(localStorage.getItem("targets") || "{}"),
   updated: new Date().toLocaleString(),
 });
+console.log("✅ Dashboard data saved to Firestore!");
 
+document.getElementById("lastUpdated").textContent =
+  "Last updated: " + new Date().toLocaleString();
 // ✅ AUTO RESTORE (for Mobile / Empty Local Data)
 if (
   !localStorage.getItem("dataweb") ||
