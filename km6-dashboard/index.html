@@ -337,68 +337,12 @@ async function waitForUploads({ keys = ["dataweb", "pnetinv", "invoicedate"], ti
   }
 }
 
-/* ------------------------------------------------------------
-   ☁️ Cloud Sync — Save & Restore (Unified, no duplicates)
-   ------------------------------------------------------------ */
+// -----------------------------------------------------------
+// 📲 AUTO RESTORE DASHBOARD DATA FROM FIREBASE (FOR MOBILE)
+// -----------------------------------------------------------
 async function restoreDashboardFromCloud() {
   try {
-    const docRef = db.collection("km6_dashboard_data").doc("dashboardTotals");
-    const doc = await docRef.get();
-
-    if (!doc.exists) {
-      console.warn("⚠️ No dashboardTotals document found in Firestore.");
-      return false;
-    }
-
-    const data = doc.data() || {};
-    console.log("📥 Restoring dashboard from Firestore...", data);
-    console.log("✅ Firebase sync complete — local and cloud data now match.");
-
-    // ✅ Super-safe parser: handles undefined, empty, invalid JSON, or object
-    const parseSafe = (value, fallback = {}) => {
-  try {
-    if (value === null || value === undefined || value === "undefined") return fallback;
-    if (typeof value === "object") return value;
-    if (typeof value === "string" && value.trim() === "") return fallback;
-    return JSON.parse(value);
-  } catch (err) {
-    console.warn("⚠️ Skipped invalid JSON value:", value);
-    return fallback;
-  }
-};
-
-    // ✅ Safely extract and parse every expected field
-    const dataweb = parseSafe(data.dataweb, []);
-    const pnetinv = parseSafe(data.pnetinv, []);
-    const invoicedate = parseSafe(data.invoicedate, []);
-    const fsTotals = parseSafe(data.fsTotals, {});
-    const targets = parseSafe(data.targets, {});
-
-    // ✅ Store locally
-    localStorage.setItem("dataweb", JSON.stringify(dataweb));
-    localStorage.setItem("pnetinv", JSON.stringify(pnetinv));
-    localStorage.setItem("invoicedate", JSON.stringify(invoicedate));
-    localStorage.setItem("fsTotals", JSON.stringify(fsTotals));
-    localStorage.setItem("targets", JSON.stringify(targets));
-
-    console.log("✅ Dashboard data restored successfully from Firestore.");
-    return true;
-
-  } catch (err) {
-    console.error("❌ Error restoring data from Firestore:", err);
-    return false;
-  }
-}
-
-/*  restoreDashboardFromCloud(force=false)
-    - Loads data from Firestore
-    - Skips if local lastSyncTime === server updated (unless force)
-    - Recomputes dashboard & updates DOM
-*/
-async function restoreDashboardFromCloud(force = false) {
-  if (!window.db) return;
-  console.log("📡 Checking Firestore for saved dashboard data...");
-  try {
+    console.log("📡 Checking Firestore for saved dashboard data...");
     const docRef = db.collection("km6_dashboard_data").doc("dashboardTotals");
     const snapshot = await docRef.get();
 
@@ -408,43 +352,68 @@ async function restoreDashboardFromCloud(force = false) {
     }
 
     const data = snapshot.data();
-    let localUpdated = null;
-try {
-  const raw = localStorage.getItem("lastSyncTime");
-  if (raw && raw !== "undefined" && raw.trim() !== "") {
-    localUpdated = JSON.parse(raw);
-  }
-} catch {
-  console.warn("⚠️ Invalid or empty lastSyncTime in localStorage — resetting.");
-  localUpdated = null;
-}
+    console.log("✅ Dashboard data found in Firestore:", data);
 
-    if (!force && localUpdated === data.updated) {
-      console.log("🟢 Already up to date — no restore needed.");
-      return;
-    }
-
-    // Restore all datasets
+    // ✅ Restore all major datasets to localStorage
     if (data.dataweb) localStorage.setItem("dataweb", JSON.stringify(data.dataweb));
     if (data.pnetinv) localStorage.setItem("pnetinv", JSON.stringify(data.pnetinv));
     if (data.invoicedate) localStorage.setItem("invoicedate", JSON.stringify(data.invoicedate));
     if (data.fsTotals) localStorage.setItem("fsTotals", JSON.stringify(data.fsTotals));
-    if (data.targets) localStorage.setItem("targets", JSON.stringify(data.targets));
     if (data.overall) localStorage.setItem("overall", JSON.stringify(data.overall));
-    if (data.totals) localStorage.setItem("totals", JSON.stringify(data.totals));
 
-    localStorage.setItem("lastSyncTime", JSON.stringify(data.updated));
-    setText("lastUpdated", "Last updated: " + (data.updated || new Date().toLocaleString()), { asNumber: false });
-    console.log("✅ Cloud data loaded:", data);
-    localStorage.setItem("lastSyncTime", JSON.stringify(Date.now()));
+    console.log("💾 Data restored to localStorage from Firebase.");
 
-    // Recompute & rerender after restore
-    await recomputeAndRenderAll();
-    console.log("🎯 Dashboard restored and refreshed successfully!");
+    // ✅ Re-render everything (functions only if they exist)
+    if (typeof renderDailySales === "function") renderDailySales();
+    if (typeof computeBranchSummary === "function") computeBranchSummary();
+    if (typeof renderFSTables === "function") renderFSTables();
+    if (typeof autoSumTotals === "function") autoSumTotals();
+    if (typeof updateBranchTargets === "function") updateBranchTargets();
+    if (typeof updateBranchSummaryCalculations === "function") updateBranchSummaryCalculations();
+
+    // ✅ Update timestamp label
+    const lastUpdated = document.getElementById("lastUpdated");
+    if (lastUpdated)
+      lastUpdated.textContent =
+        "Last updated: " + (data.updated || new Date().toLocaleString());
+
+    console.log("🎯 Dashboard fully restored and refreshed!");
   } catch (err) {
-    console.error("❌ Error restoring data from Firestore:", err);
+    console.error("❌ Error restoring data from Firebase:", err);
   }
 }
+
+// -----------------------------------------------------------
+// 🟢 AUTO RUN on page load (for Mobile/Desktop refresh)
+// -----------------------------------------------------------
+window.addEventListener("load", async () => {
+  const getSafe = (key) => {
+    try {
+      const val = localStorage.getItem(key);
+      return val && val !== "undefined" ? JSON.parse(val) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const dataweb = getSafe("dataweb");
+  const pnetinv = getSafe("pnetinv");
+  const invoicedate = getSafe("invoicedate");
+
+  // Restore if any critical dataset is missing or empty
+  const needsRestore =
+    !Array.isArray(dataweb) || dataweb.length === 0 ||
+    !Array.isArray(pnetinv) || pnetinv.length === 0 ||
+    !Array.isArray(invoicedate) || invoicedate.length === 0;
+
+  if (needsRestore) {
+    console.log("📱 No valid local data found — restoring from Firebase...");
+    await restoreDashboardFromCloud();
+  } else {
+    console.log("💾 Local data found — skipping Firebase restore.");
+  }
+});
+
 
 /* ------------------------------------------------------------
    🧮 FS Totals (stable SUM version)
