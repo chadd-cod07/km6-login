@@ -313,43 +313,34 @@ function getFSTarget(fsName) {
     document.getElementById("remainingDays").textContent = sellingDays - actual;
   })();
 
-  // -----------------------------------------------------------
-  // WAIT + COMPUTE DASHBOARD
-  // -----------------------------------------------------------
-  async function waitForUploads() {
-    return new Promise(resolve => {
-      const check = () => {
-        if (localStorage.getItem("dataweb") && localStorage.getItem("pnetinv") && localStorage.getItem("invoicedate")) resolve(true);
-        else setTimeout(check, 1000);
-      };
-      check();
-    });
+// -----------------------------------------------------------
+// 🧮 WAIT + COMPUTE DASHBOARD (Fixed Order)
+// -----------------------------------------------------------
+async function computeKM6Dashboard() {
+  await waitForUploads();
+
+  console.log("🚀 Starting KM6 Dashboard computation...");
+
+  // ✅ STEP 1: Normalize header data
+  function fixData(raw) {
+    if (!raw) return [];
+    if (Array.isArray(raw) && Array.isArray(raw[0])) {
+      const headers = raw[0].map(h => String(h || "").trim());
+      return raw.slice(1).map(r => Object.fromEntries(headers.map((h, i) => [h, r[i]])));
+    }
+    return raw;
   }
 
-  async function computeKM6Dashboard() {
-    await waitForUploads();
+// ✅ STEP 2: Load and prepare data
+  let dataweb = fixData(JSON.parse(localStorage.getItem("dataweb") || "[]"));
+  let pnetinv = fixData(JSON.parse(localStorage.getItem("pnetinv") || "[]"));
+  let invoicedate = fixData(JSON.parse(localStorage.getItem("invoicedate") || "[]"));
+  const targets = JSON.parse(localStorage.getItem("targets") || "{}");
 
-    // ✅ Normalize header data
-    function fixData(raw) {
-      if (!raw) return [];
-      if (Array.isArray(raw) && Array.isArray(raw[0])) {
-        const headers = raw[0].map(h => String(h || "").trim());
-        return raw.slice(1).map(r => Object.fromEntries(headers.map((h, i) => [h, r[i]])));
-      }
-      return raw;
-    }
-
-    // Load from localStorage
-    let dataweb = fixData(JSON.parse(localStorage.getItem("dataweb") || "[]"));
-    let pnetinv = fixData(JSON.parse(localStorage.getItem("pnetinv") || "[]"));
-    let invoicedate = fixData(JSON.parse(localStorage.getItem("invoicedate") || "[]"));
-    const targets = JSON.parse(localStorage.getItem("targets") || "{}");
-
-    if (!dataweb.length && !pnetinv.length) {
-      console.warn("⚠️ No uploaded Excel data found.");
-      return;
-    }
-
+  if (!dataweb.length && !pnetinv.length) {
+    console.warn("⚠️ No uploaded Excel data found.");
+    return;
+  }
     // -----------------------------------------------------------
 // 🧩 MULTI-BRANCH COMPUTATION (Fixed and Accurate)
 // -----------------------------------------------------------
@@ -446,60 +437,71 @@ console.log("✅ Multi-branch totals computed:", totals);
       change("prevKM6", "currKM6", "changeKM6", km6Prev, km6Curr);
     }
 // -----------------------------------------------------------
-// 🔄 FIREBASE SYNC (Upload + Include All Data)
+// 🔄 FIREBASE SYNC — Save Full Dashboard Data
 // -----------------------------------------------------------
-await db.collection("km6_dashboard_data").doc("dashboardTotals").set({
-  totals,
-  overall: totalAll,
-  dataweb,
-  pnetinv,
-  invoicedate,
-  fsTotals: JSON.parse(localStorage.getItem("fsTotals") || "{}"),
-  targets: JSON.parse(localStorage.getItem("targets") || "{}"),
-  updated: new Date().toLocaleString(),
-});
-console.log("✅ Dashboard data saved to Firestore!");
+async function saveDashboardToFirestore() {
+  try {
+    const totals = JSON.parse(localStorage.getItem("totals") || "{}");
+    const totalAll = JSON.parse(localStorage.getItem("overall") || "{}");
+    const dataweb = JSON.parse(localStorage.getItem("dataweb") || "[]");
+    const pnetinv = JSON.parse(localStorage.getItem("pnetinv") || "[]");
+    const invoicedate = JSON.parse(localStorage.getItem("invoicedate") || "[]");
+    const fsTotals = JSON.parse(localStorage.getItem("fsTotals") || "{}");
+    const targets = JSON.parse(localStorage.getItem("targets") || "{}");
 
-document.getElementById("lastUpdated").textContent =
-  "Last updated: " + new Date().toLocaleString();
-// ✅ AUTO RESTORE (for Mobile / Empty Local Data)
-if (
-  !localStorage.getItem("dataweb") ||
-  !localStorage.getItem("pnetinv") ||
-  !localStorage.getItem("invoicedate") ||
-  !localStorage.getItem("fsTotals")
-) {
-  console.log("📡 Local data missing — restoring from Firestore...");
-  const snapshot = await db.collection("km6_dashboard_data").doc("dashboardTotals").get();
+    await db.collection("km6_dashboard_data").doc("dashboardTotals").set({
+      totals,
+      overall: totalAll,
+      dataweb,
+      pnetinv,
+      invoicedate,
+      fsTotals,
+      targets,
+      updated: new Date().toLocaleString(),
+    });
 
-  if (snapshot.exists) {
-    const data = snapshot.data();
-
-    // 🧾 Restore all key datasets
-    if (data.dataweb) localStorage.setItem("dataweb", JSON.stringify(data.dataweb));
-    if (data.pnetinv) localStorage.setItem("pnetinv", JSON.stringify(data.pnetinv));
-    if (data.invoicedate) localStorage.setItem("invoicedate", JSON.stringify(data.invoicedate));
-    if (data.fsTotals) localStorage.setItem("fsTotals", JSON.stringify(data.fsTotals));
-    if (data.overall) localStorage.setItem("overall", JSON.stringify(data.overall));
-
-    console.log("✅ Data fully restored from Firestore.");
-
-    // 🧮 Auto-refresh all major dashboard parts
-    computeBranchSummary();
-    renderFSTables();
-    renderDailySales();
-    autoSumTotals();
-    updateBranchTargets();
-    updateBranchSummaryCalculations();
-
-    // ✅ Update "Last Updated"
     document.getElementById("lastUpdated").textContent =
-      "Last updated: " + (data.updated || new Date().toLocaleString());
-  } else {
-    console.warn("⚠️ No dashboardTotals document found in Firestore.");
+      "Last updated: " + new Date().toLocaleString();
+    console.log("✅ Dashboard data saved to Firestore!");
+  } catch (err) {
+    console.error("❌ Firestore sync failed:", err);
   }
-} else {
-  console.log("✅ LocalStorage data found — skipping restore.");
+}
+// -----------------------------------------------------------
+// ☁️ RESTORE FROM FIREBASE
+// -----------------------------------------------------------
+async function restoreDashboardFromCloud(showAlert = false) {
+  console.log("📡 Checking Firestore for saved dashboard data...");
+  try {
+    const docSnap = await db.collection("km6_dashboard_data").doc("dashboardTotals").get();
+    if (docSnap.exists) {
+      const data = docSnap.data();
+      localStorage.setItem("fsTotals", JSON.stringify(data.fsTotals || {}));
+      localStorage.setItem("targets", JSON.stringify(data.targets || {}));
+      localStorage.setItem("dataweb", JSON.stringify(data.dataweb || []));
+      localStorage.setItem("pnetinv", JSON.stringify(data.pnetinv || []));
+      localStorage.setItem("invoicedate", JSON.stringify(data.invoicedate || []));
+      localStorage.setItem("overall", JSON.stringify(data.overall || {}));
+      localStorage.setItem("totals", JSON.stringify(data.totals || {}));
+
+      document.getElementById("lastUpdated").textContent = "Last updated: " + data.updated;
+      console.log("🎯 Dashboard restored successfully!");
+
+      // 🔁 Recompute after loading data
+      computeKM6Dashboard();
+      computeBranchSummary();
+      renderFSTables();
+      updateBranchSummaryCalculations();
+
+      if (showAlert) alert("✅ Dashboard data synced from cloud!");
+    } else {
+      console.warn("⚠️ No dashboardTotals found in Firestore.");
+      if (showAlert) alert("⚠️ No cloud data found.");
+    }
+  } catch (err) {
+    console.error("❌ Failed to load from Firestore:", err);
+    if (showAlert) alert("❌ Error loading from cloud.");
+  }
 }
 
 // ✅ Timestamp
