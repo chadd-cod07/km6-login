@@ -107,18 +107,27 @@ body {
   font-size: 14px;
 }
 
-/* Table Section */
 .table-section {
-  padding: 25px 15px;
+  padding: 0 7px;       /* no top/bottom padding */
+  margin-top: 0;         /* remove extra top space */
+  margin-bottom: 0;      /* remove space below tables */
 }
 
+.table-section h2 {
+  margin: 0 0 2px 0;     /* remove large top margin, tiny space below */
+  padding: 0;
+  line-height: 1.2;      /* compress text height slightly */
+}
+
+/* keep table edges consistent */
 .table-container {
   width: 100%;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
 
-table {
+.table-container table {
+  margin-top: 4px;          /* slight breathing room below titles */
   width: 100%;
   border-collapse: collapse;
   text-align: center;
@@ -140,6 +149,7 @@ td {
   border-bottom: 1px solid #ddd;
   white-space: nowrap;
 }
+
 
 /* Total row */
 .total {

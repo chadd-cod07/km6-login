@@ -172,16 +172,31 @@
       </table>
     </div>
   </section>
-<button onclick="restoreDashboardFromCloud()" style="margin:10px; padding:5px 10px; background:#00897B; color:white; border:none; border-radius:6px;">
-  🔄 Sync from Cloud
-</button>
-<!-- Firebase -->
+<!-- 🔥 Firebase SDK (Compat Version 11.x) -->
 <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore-compat.js"></script>
+
 <script>
-  // -----------------------------------------------------------
-  // 🔥 FIREBASE INITIALIZATION
-  // -----------------------------------------------------------
+/* ============================================================
+   KM6 Dashboard — Cleaned & Unified SCRIPT (with comments)
+   - Firebase init + Cloud Sync (auto + manual)
+   - No duplicate functions
+   - Correct compute / render order
+   - Preserves all features you listed
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   🔥 Firebase Initialization (Compat SDK)
+   ------------------------------------------------------------ */
+(function initFirebase() {
+  if (!window.firebase) {
+    console.error(`❌ Firebase SDK not found. Make sure these are in the HTML:
+&lt;script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"&gt;&lt;/script&gt;
+&lt;script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore-compat.js"&gt;&lt;/script&gt;`);
+
+    return;
+  }
+
   const firebaseConfig = {
     apiKey: "AIzaSyCStpCWdRO770N4SpH3GKYwp9pg1kP6_O4",
     authDomain: "km6-dashboard.firebaseapp.com",
@@ -190,11 +205,135 @@
     messagingSenderId: "309068846407",
     appId: "1:309068846407:web:68d51a21f6ab238fa1a862",
   };
+
   if (firebase.apps.length === 0) firebase.initializeApp(firebaseConfig);
-  const db = firebase.firestore();
-async function restoreDashboardFromCloud(force = false) {
+  window.db = firebase.firestore();
+  console.log("🔥 Firebase initialized successfully.");
+})();
+
+/* ------------------------------------------------------------
+   🧰 Small Utilities
+   ------------------------------------------------------------ */
+const fmt = n =>
+  Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const num = v => {
+  if (v == null || v === "") return 0;
+  const cleaned = String(v).replace(/[₱,()\s]/g, "").replace(/[^\d.-]/g, "").trim();
+  const val = parseFloat(cleaned);
+  return isNaN(val) ? 0 : val;
+};
+
+const normalizeText = s =>
+  String(s || "").toUpperCase().replace(/\s+/g, " ").replace(/\u00A0/g, " ").trim();
+
+const setText = (id, val, options = { asNumber: true }) => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (options.asNumber) {
+    el.textContent = Number(val || 0).toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  } else {
+    el.textContent = val ?? "";
+  }
+};
+
+/* ------------------------------------------------------------
+   🔔 Menu + Logout (guards if elements are missing)
+   ------------------------------------------------------------ */
+(function wireMenu() {
+  const menuIcon = document.querySelector(".menu-icon");
+  const dropdownMenu = document.getElementById("dropdownMenu");
+  const logoutLink = document.getElementById("logoutLink");
+
+  if (menuIcon && dropdownMenu) {
+    menuIcon.addEventListener("click", () => {
+      dropdownMenu.style.display = dropdownMenu.style.display === "block" ? "none" : "block";
+    });
+    window.addEventListener("click", e => {
+      if (!e.target.closest(".menu-container")) dropdownMenu.style.display = "none";
+    });
+  }
+  if (logoutLink) {
+    logoutLink.addEventListener("click", e => {
+      e.preventDefault();
+      window.location.href = "https://chadd-cod07.github.io/km6-login/";
+    });
+  }
+})();
+
+/* ------------------------------------------------------------
+   📅 KPI Date (Selling Days, Progress)
+   ------------------------------------------------------------ */
+(function updateKPIs() {
+  const now = new Date();
+  const summaryDate = document.querySelector(".summary .date");
+  if (summaryDate) {
+    summaryDate.textContent = now.toLocaleDateString(undefined, {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  }
+  const sellingDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const actual = now.getDate();
+  setText("sellingDays", sellingDays, { asNumber: false });
+  setText("actualDays", actual, { asNumber: false });
+  setText("progressPct", Math.round((actual / sellingDays) * 100) + "%", { asNumber: false });
+  setText("remainingDays", sellingDays - actual, { asNumber: false });
+})();
+
+/* ------------------------------------------------------------
+   🕘 Wait for Uploads (localStorage data to appear)
+   - Resolves early if keys already exist
+   ------------------------------------------------------------ */
+async function waitForUploads({ keys = ["dataweb", "pnetinv", "invoicedate"], timeoutMs = 2500, pollMs = 150 } = {}) {
+  const hasAll = () => keys.every(k => !!localStorage.getItem(k));
+  if (hasAll()) return;
+
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    if (hasAll()) return;
+    await new Promise(r => setTimeout(r, pollMs));
+  }
+}
+
+/* ------------------------------------------------------------
+   ☁️ Cloud Sync — Save & Restore (Unified, no duplicates)
+   ------------------------------------------------------------ */
+async function saveDashboardToFirestore() {
   try {
-    console.log("📡 Checking Firestore for saved dashboard data...");
+    if (!window.db) return;
+    const payload = {
+      totals: JSON.parse(localStorage.getItem("totals") || "{}"),
+      overall: JSON.parse(localStorage.getItem("overall") || "{}"),
+      dataweb: JSON.parse(localStorage.getItem("dataweb") || "[]"),
+      pnetinv: JSON.parse(localStorage.getItem("pnetinv") || "[]"),
+      invoicedate: JSON.parse(localStorage.getItem("invoicedate") || "[]"),
+      fsTotals: JSON.parse(localStorage.getItem("fsTotals") || "{}"),
+      targets: JSON.parse(localStorage.getItem("targets") || "{}"),
+      updated: new Date().toLocaleString(),
+    };
+    await db.collection("km6_dashboard_data").doc("dashboardTotals").set(payload);
+    setText("lastUpdated", "Last updated: " + payload.updated, { asNumber: false });
+    console.log("✅ Dashboard data saved to Firestore!");
+  } catch (err) {
+    console.error("❌ Firestore sync failed:", err);
+  }
+}
+
+/*  restoreDashboardFromCloud(force=false)
+    - Loads data from Firestore
+    - Skips if local lastSyncTime === server updated (unless force)
+    - Recomputes dashboard & updates DOM
+*/
+async function restoreDashboardFromCloud(force = false) {
+  if (!window.db) return;
+  console.log("📡 Checking Firestore for saved dashboard data...");
+  try {
     const docRef = db.collection("km6_dashboard_data").doc("dashboardTotals");
     const snapshot = await docRef.get();
 
@@ -204,319 +343,37 @@ async function restoreDashboardFromCloud(force = false) {
     }
 
     const data = snapshot.data();
-    console.log("✅ Cloud data loaded:", data);
-
-    // If not forced and localStorage already has matching updated time, skip
     const localUpdated = JSON.parse(localStorage.getItem("lastSyncTime") || "null");
     if (!force && localUpdated === data.updated) {
       console.log("🟢 Already up to date — no restore needed.");
       return;
     }
 
-    // ✅ Restore all datasets
+    // Restore all datasets
     if (data.dataweb) localStorage.setItem("dataweb", JSON.stringify(data.dataweb));
     if (data.pnetinv) localStorage.setItem("pnetinv", JSON.stringify(data.pnetinv));
     if (data.invoicedate) localStorage.setItem("invoicedate", JSON.stringify(data.invoicedate));
     if (data.fsTotals) localStorage.setItem("fsTotals", JSON.stringify(data.fsTotals));
     if (data.targets) localStorage.setItem("targets", JSON.stringify(data.targets));
     if (data.overall) localStorage.setItem("overall", JSON.stringify(data.overall));
+    if (data.totals) localStorage.setItem("totals", JSON.stringify(data.totals));
 
     localStorage.setItem("lastSyncTime", JSON.stringify(data.updated));
+    setText("lastUpdated", "Last updated: " + (data.updated || new Date().toLocaleString()), { asNumber: false });
+    console.log("✅ Cloud data loaded:", data);
 
-    // ✅ Refresh all dashboard components
-    renderDailySales();
-    computeBranchSummary();
-    renderFSTables();
-    autoSumTotals();
-    updateBranchTargets();
-    updateBranchSummaryCalculations();
-
-    // ✅ Update timestamp
-    const label = document.getElementById("lastUpdated");
-    if (label)
-      label.textContent = "Last updated: " + (data.updated || new Date().toLocaleString());
-
+    // Recompute & rerender after restore
+    await recomputeAndRenderAll();
     console.log("🎯 Dashboard restored and refreshed successfully!");
   } catch (err) {
     console.error("❌ Error restoring data from Firestore:", err);
   }
 }
 
-// 🟢 AUTO RUN on page load (detect if mobile has no data)
-window.addEventListener("load", async () => {
-  const hasData =
-    localStorage.getItem("dataweb") &&
-    localStorage.getItem("pnetinv") &&
-    localStorage.getItem("invoicedate");
-
-  if (!hasData) {
-    console.log("📱 No local data found — restoring from Firebase...");
-    await restoreDashboardFromCloud();
-  } else {
-    console.log("💾 Local data found — skipping restore.");
-  }
-});
-  // -----------------------------------------------------------
-  // 🧮 HELPERS
-  // -----------------------------------------------------------
-  const fmt = n => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const num = v => parseFloat(String(v || "0").replace(/[^0-9.-]/g, "")) || 0;
-
-  // ✅ Helper: Get target value per FS name (read directly from targets.fs)
-function getFSTarget(fsName) {
-  const targets = JSON.parse(localStorage.getItem("targets") || "{}");
-  const fs = targets.fs || {};
-
-  const normalize = n =>
-    String(n || "")
-      .toUpperCase()
-      .replace(/\s+/g, " ")
-      .replace(/\u00A0/g, " ")
-      .trim();
-
-  const cleanFS = normalize(fsName);
-  const matchKey = Object.keys(fs).find(k => normalize(k) === cleanFS);
-
-  if (!matchKey) {
-    console.warn(`⚠️ No target found for FS: ${fsName}`);
-    return 0;
-  }
-
-  console.log(`🎯 FS Target match: ${matchKey} = ${fs[matchKey]}`);
-  return Number(fs[matchKey]) || 0;
-}
-
-  // -----------------------------------------------------------
-  // ☰ MENU
-  // -----------------------------------------------------------
-  const menuIcon = document.querySelector(".menu-icon");
-  const dropdownMenu = document.getElementById("dropdownMenu");
-  menuIcon.addEventListener("click", () => dropdownMenu.style.display = dropdownMenu.style.display === "block" ? "none" : "block");
-  window.addEventListener("click", e => { if (!e.target.closest(".menu-container")) dropdownMenu.style.display = "none"; });
-
-  document.getElementById("logoutLink").addEventListener("click", e => {
-    e.preventDefault();
-    window.location.href = "https://chadd-cod07.github.io/km6-login/";
-  });
-
-  // -----------------------------------------------------------
-  // 📅 DATE INFO
-  // -----------------------------------------------------------
-  (function updateKPIs(){
-    const now = new Date();
-    document.querySelector(".summary .date").textContent = now.toLocaleDateString(undefined, { weekday:"short", month:"short", day:"numeric", year:"numeric" });
-    const sellingDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    const actual = now.getDate();
-    document.getElementById("sellingDays").textContent = sellingDays;
-    document.getElementById("actualDays").textContent = actual;
-    document.getElementById("progressPct").textContent = Math.round(actual/sellingDays*100) + "%";
-    document.getElementById("remainingDays").textContent = sellingDays - actual;
-  })();
-
-// -----------------------------------------------------------
-// 🧮 WAIT + COMPUTE DASHBOARD (Fixed Order)
-// -----------------------------------------------------------
-async function computeKM6Dashboard() {
-  await waitForUploads();
-
-  console.log("🚀 Starting KM6 Dashboard computation...");
-
-  // ✅ STEP 1: Normalize header data
-  function fixData(raw) {
-    if (!raw) return [];
-    if (Array.isArray(raw) && Array.isArray(raw[0])) {
-      const headers = raw[0].map(h => String(h || "").trim());
-      return raw.slice(1).map(r => Object.fromEntries(headers.map((h, i) => [h, r[i]])));
-    }
-    return raw;
-  }
-
-// ✅ STEP 2: Load and prepare data
-  let dataweb = fixData(JSON.parse(localStorage.getItem("dataweb") || "[]"));
-  let pnetinv = fixData(JSON.parse(localStorage.getItem("pnetinv") || "[]"));
-  let invoicedate = fixData(JSON.parse(localStorage.getItem("invoicedate") || "[]"));
-  const targets = JSON.parse(localStorage.getItem("targets") || "{}");
-
-  if (!dataweb.length && !pnetinv.length) {
-    console.warn("⚠️ No uploaded Excel data found.");
-    return;
-  }
-    // -----------------------------------------------------------
-// 🧩 MULTI-BRANCH COMPUTATION (Fixed and Accurate)
-// -----------------------------------------------------------
-const branches = ["KM6", "KML", "BAGUIO", "KCM"];
-const totals = {};
-
-// ✅ Safe numeric parser (no scaling or false multipliers)
-const num = v => {
-  if (v == null || v === "") return 0;
-  const cleaned = String(v).replace(/[₱,()\s]/g, "").replace(/[^\d.-]/g, "").trim();
-  const val = parseFloat(cleaned);
-  return isNaN(val) ? 0 : val;
-};
-
-branches.forEach(branch => {
-  // --- GROSS ---
-  const gross = dataweb
-    .filter(r => (r["Branch Name"] || "").toUpperCase() === branch)
-    .reduce((sum, r) => sum + num(r["Sum of Order Amount"]), 0);
-
-  // --- NET SALES ---
-  const net = pnetinv
-    .filter(r => (r["Branch Name"] || "").toUpperCase() === branch)
-    .reduce((sum, r) => sum + num(r["TOTAL NET"]), 0);
-
-  // --- REJECTION ---
-  const rej = pnetinv
-    .filter(r => (r["Branch Name"] || "").toUpperCase() === branch)
-    .reduce((sum, r) => sum + num(r["TOTAL REJECTION"]), 0);
-
-  // --- B.O AMOUNT ---
-  const bo = pnetinv
-    .filter(r => (r["Branch Name"] || "").toUpperCase() === branch)
-    .reduce((sum, r) => sum + num(r["TOTAL BO"] || r["TOTAL B.O."]), 0);
-
-  // --- SAVE RESULTS ---
-  totals[branch] = { gross, net, reject: rej, bo, target: 0 };
-});
-
-console.log("✅ Multi-branch totals computed:", totals);
-
-    // -----------------------------------------------------------
-    // 🎯 TARGET INTEGRATION
-    // -----------------------------------------------------------
-    if (targets && typeof targets === "object") {
-      branches.forEach(branch => {
-        const branchTarget = targets[branch] || targets[branch.toLowerCase()] || 0;
-        totals[branch].target = num(branchTarget);
-      });
-    }
-
-    // -----------------------------------------------------------
-    // 🧮 DISPLAY & PERCENTAGE CALCULATION
-    // -----------------------------------------------------------
-    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = fmt(val); };
-
-    let totalAll = { gross: 0, net: 0, reject: 0, bo: 0, target: 0 };
-    branches.forEach(branch => {
-      const t = totals[branch];
-      totalAll.gross += t.gross; totalAll.net += t.net; totalAll.reject += t.reject; totalAll.bo += t.bo; totalAll.target += t.target;
-      set(`${branch}_gross`, t.gross);
-      set(`${branch}_net`, t.net);
-      set(`${branch}_reject`, t.reject);
-      set(`${branch}_bo`, t.bo);
-      set(`${branch}_target`, t.target);
-      const pct = t.target ? ((t.net / t.target) * 100).toFixed(2) + "%" : "-";
-      const elPct = document.getElementById(`${branch}_pct`);
-      if (elPct) elPct.textContent = pct;
-    });
-
-    set("totGross", totalAll.gross);
-    set("totNet", totalAll.net);
-    set("totReject", totalAll.reject);
-    set("totBO", totalAll.bo);
-    set("totTarget", totalAll.target);
-    document.getElementById("totPct").textContent = totalAll.target ? ((totalAll.net / totalAll.target) * 100).toFixed(2) + "%" : "-";
-
-    // -----------------------------------------------------------
-    // 🕒 INVOICE DATE COMPARISON
-    // -----------------------------------------------------------
-    if (invoicedate.length > 1) {
-      const last = invoicedate[invoicedate.length - 1];
-      const prev = invoicedate[invoicedate.length - 2];
-      const km6Curr = num(last["KM6"]) + num(last["KML"]);
-      const km6Prev = num(prev["KM6"]) + num(prev["KML"]);
-      const pct = km6Prev ? ((km6Curr - km6Prev) / km6Prev) * 100 : 0;
-
-      const change = (idPrev, idCurr, idChange, prevVal, currVal) => {
-        const elP = document.getElementById(idPrev), elC = document.getElementById(idCurr), elCh = document.getElementById(idChange);
-        if (elP) elP.textContent = fmt(prevVal);
-        if (elC) elC.textContent = fmt(currVal);
-        if (elCh) { elCh.textContent = (pct >= 0 ? "▲ " : "▼ ") + Math.abs(pct).toFixed(2) + "%"; elCh.className = pct >= 0 ? "up" : "down"; }
-      };
-      change("prevKM6", "currKM6", "changeKM6", km6Prev, km6Curr);
-    }
-// -----------------------------------------------------------
-// 🔄 FIREBASE SYNC — Save Full Dashboard Data
-// -----------------------------------------------------------
-async function saveDashboardToFirestore() {
-  try {
-    const totals = JSON.parse(localStorage.getItem("totals") || "{}");
-    const totalAll = JSON.parse(localStorage.getItem("overall") || "{}");
-    const dataweb = JSON.parse(localStorage.getItem("dataweb") || "[]");
-    const pnetinv = JSON.parse(localStorage.getItem("pnetinv") || "[]");
-    const invoicedate = JSON.parse(localStorage.getItem("invoicedate") || "[]");
-    const fsTotals = JSON.parse(localStorage.getItem("fsTotals") || "{}");
-    const targets = JSON.parse(localStorage.getItem("targets") || "{}");
-
-    await db.collection("km6_dashboard_data").doc("dashboardTotals").set({
-      totals,
-      overall: totalAll,
-      dataweb,
-      pnetinv,
-      invoicedate,
-      fsTotals,
-      targets,
-      updated: new Date().toLocaleString(),
-    });
-
-    document.getElementById("lastUpdated").textContent =
-      "Last updated: " + new Date().toLocaleString();
-    console.log("✅ Dashboard data saved to Firestore!");
-  } catch (err) {
-    console.error("❌ Firestore sync failed:", err);
-  }
-}
-// -----------------------------------------------------------
-// ☁️ RESTORE FROM FIREBASE
-// -----------------------------------------------------------
-async function restoreDashboardFromCloud(showAlert = false) {
-  console.log("📡 Checking Firestore for saved dashboard data...");
-  try {
-    const docSnap = await db.collection("km6_dashboard_data").doc("dashboardTotals").get();
-    if (docSnap.exists) {
-      const data = docSnap.data();
-      localStorage.setItem("fsTotals", JSON.stringify(data.fsTotals || {}));
-      localStorage.setItem("targets", JSON.stringify(data.targets || {}));
-      localStorage.setItem("dataweb", JSON.stringify(data.dataweb || []));
-      localStorage.setItem("pnetinv", JSON.stringify(data.pnetinv || []));
-      localStorage.setItem("invoicedate", JSON.stringify(data.invoicedate || []));
-      localStorage.setItem("overall", JSON.stringify(data.overall || {}));
-      localStorage.setItem("totals", JSON.stringify(data.totals || {}));
-
-      document.getElementById("lastUpdated").textContent = "Last updated: " + data.updated;
-      console.log("🎯 Dashboard restored successfully!");
-
-      // 🔁 Recompute after loading data
-      computeKM6Dashboard();
-      computeBranchSummary();
-      renderFSTables();
-      updateBranchSummaryCalculations();
-
-      if (showAlert) alert("✅ Dashboard data synced from cloud!");
-    } else {
-      console.warn("⚠️ No dashboardTotals found in Firestore.");
-      if (showAlert) alert("⚠️ No cloud data found.");
-    }
-  } catch (err) {
-    console.error("❌ Failed to load from Firestore:", err);
-    if (showAlert) alert("❌ Error loading from cloud.");
-  }
-}
-
-// ✅ Timestamp
-document.getElementById("lastUpdated").textContent =
-  "Last updated: " + new Date().toLocaleString();
-
-
-    renderFSTables();
-  }
-  
-   // ✅ closes computeKM6Dashboard function properly
-
-// -----------------------------------------------------------
-// 🧮 COMPUTE FS TOTALS (Final Stable SUM Version)
-// -----------------------------------------------------------
+/* ------------------------------------------------------------
+   🧮 FS Totals (stable SUM version)
+   - Builds fsTotals from dataweb + pnetinv
+   ------------------------------------------------------------ */
 function computeFSTotals() {
   const dataweb = JSON.parse(localStorage.getItem("dataweb") || "[]");
   const pnetinv = JSON.parse(localStorage.getItem("pnetinv") || "[]");
@@ -527,24 +384,9 @@ function computeFSTotals() {
   }
 
   const fsTotals = {};
+  const cleanFS = s => normalizeText(s);
 
-  // ✅ Safe number parser
-const num = v => {
-  if (v == null || v === "") return 0;
-  let cleaned = String(v).replace(/[₱,()\s]/g, "").replace(/[^\d.-]/g, "").trim();
-  let val = parseFloat(cleaned);
-  return isNaN(val) ? 0 : val;
-};
-
-  // ✅ Normalize FS names
-  const cleanFS = s =>
-    String(s || "")
-      .toUpperCase()
-      .replace(/\s+/g, " ")
-      .replace(/\u00A0/g, " ")
-      .trim();
-
-  // --- STEP 1: GROSS per FS (from dataweb)
+  // GROSS per FS (from dataweb)
   dataweb.forEach(row => {
     const fs = cleanFS(row["FS"]);
     const gross = num(row["Sum of Order Amount"]);
@@ -553,105 +395,41 @@ const num = v => {
     fsTotals[fs].gross += gross;
   });
 
-  // --- STEP 2: SUM Rejection, BO, NET per FS (from P_Net.Inv)
+  // REJECTION, BO, NET per FS (from pnetinv)
   pnetinv.forEach(row => {
     const fs = cleanFS(row["FS"]);
     if (!fs) return;
     const rej = num(row["TOTAL REJECTION"]);
     const bo = num(row["TOTAL BO"] || row["TOTAL B.O."]);
-    const net = num(row["TOTAL NET"]);
-
+    const netv = num(row["TOTAL NET"]);
     if (!fsTotals[fs]) fsTotals[fs] = { gross: 0, reject: 0, bo: 0, net: 0 };
     fsTotals[fs].reject += rej;
     fsTotals[fs].bo += bo;
-    fsTotals[fs].net += net;
+    fsTotals[fs].net += netv;
   });
 
-  // --- STEP 3: Save + Log
   localStorage.setItem("fsTotals", JSON.stringify(fsTotals));
-  console.log("✅ FS totals computed (final SUM version):", fsTotals);
+  console.log("✅ FS totals computed:", fsTotals);
 }
 
-// 🟩 Compute FS totals only if missing or outdated
-let existingFsTotals = JSON.parse(localStorage.getItem("fsTotals") || "{}");
-if (!Object.keys(existingFsTotals).length) {
-  console.log("🧮 Recomputing FS totals (none found in storage)...");
-  computeFSTotals();
-} else {
-  console.log("📦 Loaded FS totals from localStorage:", existingFsTotals);
-}
-
-// ✅ Ensure FS totals exist before rendering tables
-let fsData = JSON.parse(localStorage.getItem("fsTotals") || "{}");
-if (!Object.keys(fsData).length) {
-  console.log("🧮 Recomputing FS totals before rendering...");
-  computeFSTotals(); // rebuild data from sheets
-  fsData = JSON.parse(localStorage.getItem("fsTotals") || "{}");
-}
-
-// 🧹 Clean and correct scaled Target data in localStorage
-(() => {
-  const fsData = JSON.parse(localStorage.getItem("fsTargetData") || "[]");
-  const cleaned = fsData.map(t => {
-    const val = parseFloat(String(t.Target).replace(/[^\d.-]/g, ""));
-    let fixed = val;
-
-    // Detect 5× or 10× scaling errors and correct
-    if (fixed > 100000000) fixed /= 10; // too large (e.g., 150M → 15M)
-    if (fixed > 70000000 && fixed < 80000000) fixed /= 5; // special case like Jim Russel
-    if (fixed > 10000000 && fixed < 20000000) fixed = fixed; // looks valid
-
-    return { ...t, Target: fixed };
-  });
-
-  localStorage.setItem("fsTargetData", JSON.stringify(cleaned));
-  console.log("✅ Cleaned fsTargetData saved:", cleaned);
-})();
-
-renderFSTables();
-
-// -----------------------------------------------------------
-// 🧾 RENDER FS TABLES (Smart match + Correct Targets + Clean Format)
-// -----------------------------------------------------------
+/* ------------------------------------------------------------
+   🧾 Render FS Tables (KCM / LU / BG) + Targets
+   ------------------------------------------------------------ */
 function renderFSTables() {
   const fsTotals = JSON.parse(localStorage.getItem("fsTotals") || "{}");
 
   const groups = {
     KCM: ["Jim Russel Peralta", "Judy Ann Mabanta", "Gilbert Aquino", "Roderick Dacay", "Gyver Gano"],
-    LU: ["Gemma Jacaban", "Jovelyn Castro"],
-    BG: ["Jehu Romero", "Mc Ardel Cachicho", "Rocky Fowaya"]
+    LU:  ["Gemma Jacaban", "Jovelyn Castro"],
+    BG:  ["Jehu Romero", "Mc Ardel Cachicho", "Rocky Fowaya"]
   };
-
   const tableIds = { KCM: "tblKCM", LU: "tblLU", BG: "tblBG" };
 
-  // ✅ Safe numeric parser
-  const num = v => {
-    if (v == null || v === "") return 0;
-    const cleaned = String(v).replace(/[₱,()\s]/g, "").replace(/[^\d.-]/g, "").trim();
-    const val = parseFloat(cleaned);
-    return isNaN(val) ? 0 : val;
-  };
-
-  const fmt = n => Number(n || 0).toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
-
-  // ✅ Normalize FS names
-  const cleanName = n =>
-    String(n || "")
-      .toUpperCase()
-      .replace(/\s+/g, " ")
-      .replace(/\u00A0/g, " ")
-      .trim();
-
-  // ✅ Load targets
   const storedTargets = JSON.parse(localStorage.getItem("targets") || "{}");
   const fsTargets = storedTargets.fs || {};
 
-  console.log("✅ Loaded FS targets:", fsTargets);
+  const fmtPct = v => v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  // 🔹 Loop through each group (KCM, LU, BG)
   for (const [group, names] of Object.entries(groups)) {
     const tbody = document.querySelector(`#${tableIds[group]}`);
     if (!tbody) continue;
@@ -660,42 +438,33 @@ function renderFSTables() {
     tbody.innerHTML = "";
     if (totalRow) tbody.appendChild(totalRow);
 
-    let total = { gross: 0, reject: 0, bo: 0, net: 0, target: 0, balance: 0 };
+    const sum = { gross: 0, reject: 0, bo: 0, net: 0, target: 0, balance: 0 };
 
-    // 🔹 Render each FS under this group
     names.forEach(name => {
-      const fsKey = cleanName(name);
-      let matchedKey = Object.keys(fsTotals).find(k => cleanName(k) === fsKey) || null;
+      const fsKey = normalizeText(name);
+      const matchedKey = Object.keys(fsTotals).find(k => normalizeText(k) === fsKey) || null;
       const d = matchedKey ? fsTotals[matchedKey] : {};
 
-      const g = num(d.gross);
-      const r = num(d.reject);
-      const b = num(d.bo);
-      const n = num(d.net);
+      const g = num(d?.gross);
+      const r = num(d?.reject);
+      const b = num(d?.bo);
+      const n = num(d?.net);
 
-      // ✅ Target value
-      const target = fsTargets[fsKey] || fsTargets[fsKey.toUpperCase()] || 0;
+      // Target match (exact normalized key)
+      const tMatch = Object.keys(fsTargets).find(k => normalizeText(k) === fsKey);
+      const target = tMatch ? Number(fsTargets[tMatch]) || 0 : 0;
+
       const pct = target > 0 ? (n / target) * 100 : 0;
       const balance = n - target;
 
-      console.log(`${name} | Net: ${n} | Target: ${target} | %: ${pct.toFixed(2)}`);
+      sum.gross += g; sum.reject += r; sum.bo += b; sum.net += n; sum.target += target; sum.balance += balance;
 
-      total.gross += g;
-      total.reject += r;
-      total.bo += b;
-      total.net += n;
-      total.target += target;
-      total.balance += balance;
-
-      // ✅ Format with parentheses for negatives
       const fmtVal = (v, isPct = false) => {
-        if (isPct)
-          return v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        if (isPct) return fmtPct(v);
         const abs = Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         return v < 0 ? `(${abs})` : abs;
       };
 
-      // ✅ No more color-coded %
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${name}</td>
@@ -710,436 +479,183 @@ function renderFSTables() {
       tbody.insertBefore(tr, totalRow);
     });
 
-    // ✅ Update total row
-    const totalPct = total.target > 0 ? (total.net / total.target) * 100 : 0;
-    const fmtBalance = total.balance < 0
-      ? `(${Math.abs(total.balance).toLocaleString(undefined, { minimumFractionDigits: 2 })})`
-      : total.balance.toLocaleString(undefined, { minimumFractionDigits: 2 });
+    const totalPct = sum.target > 0 ? (sum.net / sum.target) * 100 : 0;
+    const fmtBalance = sum.balance < 0
+      ? `(${Math.abs(sum.balance).toLocaleString(undefined, { minimumFractionDigits: 2 })})`
+      : sum.balance.toLocaleString(undefined, { minimumFractionDigits: 2 });
 
-    totalRow.innerHTML = `
-      <td><b>Total ${group}</b></td>
-      <td><b>${fmt(total.gross)}</b></td>
-      <td><b>${fmt(total.reject)}</b></td>
-      <td><b>${fmt(total.bo)}</b></td>
-      <td><b>${fmt(total.net)}</b></td>
-      <td><b>${fmt(total.target)}</b></td>
-      <td><b>${fmt(totalPct)}%</b></td>
-      <td><b>${fmtBalance}</b></td>
-    `;
-    totalRow.style.backgroundColor = "#fff8cc";
+    if (totalRow) {
+      totalRow.innerHTML = `
+        <td><b>Total ${group}</b></td>
+        <td><b>${fmt(sum.gross)}</b></td>
+        <td><b>${fmt(sum.reject)}</b></td>
+        <td><b>${fmt(sum.bo)}</b></td>
+        <td><b>${fmt(sum.net)}</b></td>
+        <td><b>${fmt(sum.target)}</b></td>
+        <td><b>${fmt(totalPct)}%</b></td>
+        <td><b>${fmtBalance}</b></td>
+      `;
+      totalRow.style.backgroundColor = "#fff8cc";
+    }
   }
 }
 
-// -----------------------------------------------------------
-// 🧮 COMPUTE BRANCH SUMMARY (Baguio + La Union)
-// -----------------------------------------------------------
+/* ------------------------------------------------------------
+   🏢 Branch Summary (Baguio / La Union) — merged version
+   ------------------------------------------------------------ */
 function computeBranchSummary() {
-  const fsTotals = JSON.parse(localStorage.getItem("fsTotals") || "{}");
   const dataweb = JSON.parse(localStorage.getItem("dataweb") || "[]");
   const pnetinv = JSON.parse(localStorage.getItem("pnetinv") || "[]");
 
   const branches = {
-    BAGUIO: { gross: 0, reject: 0, bo: 0, net: 0 },
+    BAGUIO:   { gross: 0, reject: 0, bo: 0, net: 0 },
     "LA UNION": { gross: 0, reject: 0, bo: 0, net: 0 }
   };
 
-  const num = t => parseFloat(String(t || "").replace(/[^0-9.-]/g, "")) || 0;
-
-  // --- From GROSS sheet (dataweb) ---
+  // From dataweb (Gross)
   dataweb.forEach(r => {
     const rec = {};
-    for (const [k, v] of Object.entries(r)) rec[k.trim().toUpperCase()] = v;
-
-    const branch = (rec["BRANCH NAME"] || "").toUpperCase();
+    for (const [k, v] of Object.entries(r)) rec[normalizeText(k)] = v;
+    const branch = normalizeText(rec["BRANCH NAME"]);
     const gross = num(rec["SUM OF ORDER AMOUNT"]);
-
     if (branch.includes("KM6") || branch.includes("BAGUIO")) branches.BAGUIO.gross += gross;
     if (branch.includes("KML") || branch.includes("LA UNION")) branches["LA UNION"].gross += gross;
   });
 
-  // --- From P_Net.Inv sheet (pnetinv) ---
+  // From pnetinv (Reject / BO / Net)
   pnetinv.forEach(r => {
     const rec = {};
-    for (const [k, v] of Object.entries(r)) rec[k.trim().toUpperCase()] = v;
-
-    const branch = (rec["BRANCH NAME"] || "").toUpperCase();
+    for (const [k, v] of Object.entries(r)) rec[normalizeText(k)] = v;
+    const branch = normalizeText(rec["BRANCH NAME"]);
     const rej = num(rec["TOTAL REJECTION"]);
     const bo = num(rec["TOTAL BO"]) || num(rec["TOTAL B.O."]);
-    const net = num(rec["TOTAL NET"]);
-
+    const netv = num(rec["TOTAL NET"]);
     if (branch.includes("KM6") || branch.includes("BAGUIO")) {
-      branches.BAGUIO.reject += rej;
-      branches.BAGUIO.bo += bo;
-      branches.BAGUIO.net += net;
+      branches.BAGUIO.reject += rej; branches.BAGUIO.bo += bo; branches.BAGUIO.net += netv;
     }
     if (branch.includes("KML") || branch.includes("LA UNION")) {
-      branches["LA UNION"].reject += rej;
-      branches["LA UNION"].bo += bo;
-      branches["LA UNION"].net += net;
+      branches["LA UNION"].reject += rej; branches["LA UNION"].bo += bo; branches["LA UNION"].net += netv;
     }
   });
 
-  // --- Helper for formatting ---
-  const fmt = n => Number(n || 0).toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
-  const set = (id, val) => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = fmt(val);
-  };
+  // Display individual branches
+  setText("km6Gross",  branches.BAGUIO.gross);
+  setText("km6Reject", branches.BAGUIO.reject);
+  setText("km6BO",     branches.BAGUIO.bo);
+  setText("km6Net",    branches.BAGUIO.net);
 
-  // --- Display individual branches ---
-  set("km6Gross", branches.BAGUIO.gross);
-  set("km6Reject", branches.BAGUIO.reject);
-  set("km6BO", branches.BAGUIO.bo);
-  set("km6Net", branches.BAGUIO.net);
+  setText("kmlGross",  branches["LA UNION"].gross);
+  setText("kmlReject", branches["LA UNION"].reject);
+  setText("kmlBO",     branches["LA UNION"].bo);
+  setText("kmlNet",    branches["LA UNION"].net);
 
-  set("kmlGross", branches["LA UNION"].gross);
-  set("kmlReject", branches["LA UNION"].reject);
-  set("kmlBO", branches["LA UNION"].bo);
-  set("kmlNet", branches["LA UNION"].net);
-
-  // --- ✅ FIXED: Compute total row ---
-  const totalGross = branches.BAGUIO.gross + branches["LA UNION"].gross;
+  // Totals for "Total KM6" row
+  const totalGross  = branches.BAGUIO.gross + branches["LA UNION"].gross;
   const totalReject = branches.BAGUIO.reject + branches["LA UNION"].reject;
-  const totalBO = branches.BAGUIO.bo + branches["LA UNION"].bo;
-  const totalNet = branches.BAGUIO.net + branches["LA UNION"].net;
+  const totalBO     = branches.BAGUIO.bo     + branches["LA UNION"].bo;
+  const totalNet    = branches.BAGUIO.net    + branches["LA UNION"].net;
 
-  // --- Update total KM6 row ---
-  set("totGross", totalGross);
-  set("totReject", totalReject);
-  set("totBO", totalBO);
-  set("totNet", totalNet);
+  setText("totGross",  totalGross);
+  setText("totReject", totalReject);
+  setText("totBO",     totalBO);
+  setText("totNet",    totalNet);
 
   console.log("🏢 Branch summary (Baguio + La Union):", branches);
-  console.log("📊 Total KM6:", { totalGross, totalReject, totalBO, totalNet });
 }
 
-
-// -----------------------------------------------------------
-// 🧮 COMPUTE BRANCH SUMMARY (Baguio + La Union)
-// -----------------------------------------------------------
-function computeBranchSummary() {
-  const fsTotals = JSON.parse(localStorage.getItem("fsTotals") || "{}");
-  const dataweb = JSON.parse(localStorage.getItem("dataweb") || "[]");
-  const pnetinv = JSON.parse(localStorage.getItem("pnetinv") || "[]");
-
-  const branches = {
-    BAGUIO: { gross: 0, reject: 0, bo: 0, net: 0 },
-    "LA UNION": { gross: 0, reject: 0, bo: 0, net: 0 }
-  };
-
-  const num = t => parseFloat(String(t || "").replace(/[^0-9.-]/g, "")) || 0;
-
-  // --- From GROSS sheet (dataweb) ---
-  dataweb.forEach(r => {
-    const rec = {};
-    for (const [k, v] of Object.entries(r)) rec[k.trim().toUpperCase()] = v;
-
-    const branch = (rec["BRANCH NAME"] || "").toUpperCase();
-    const gross = num(rec["SUM OF ORDER AMOUNT"]);
-
-    if (branch.includes("KM6") || branch.includes("BAGUIO")) branches.BAGUIO.gross += gross;
-    if (branch.includes("KML") || branch.includes("LA UNION")) branches["LA UNION"].gross += gross;
-  });
-
-  // --- From P_Net.Inv sheet (pnetinv) ---
-  pnetinv.forEach(r => {
-    const rec = {};
-    for (const [k, v] of Object.entries(r)) rec[k.trim().toUpperCase()] = v;
-
-    const branch = (rec["BRANCH NAME"] || "").toUpperCase();
-    const rej = num(rec["TOTAL REJECTION"]);
-    const bo = num(rec["TOTAL BO"]) || num(rec["TOTAL B.O."]);
-    const net = num(rec["TOTAL NET"]);
-
-    if (branch.includes("KM6") || branch.includes("BAGUIO")) {
-      branches.BAGUIO.reject += rej;
-      branches.BAGUIO.bo += bo;
-      branches.BAGUIO.net += net;
-    }
-    if (branch.includes("KML") || branch.includes("LA UNION")) {
-      branches["LA UNION"].reject += rej;
-      branches["LA UNION"].bo += bo;
-      branches["LA UNION"].net += net;
-    }
-  });
-
-  // --- Helper for formatting ---
-  const fmt = n => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const set = (id, val) => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = fmt(val);
-  };
-
-  // --- Display individual branches ---
-  set("km6Gross", branches.BAGUIO.gross);
-  set("km6Reject", branches.BAGUIO.reject);
-  set("km6BO", branches.BAGUIO.bo);
-  set("km6Net", branches.BAGUIO.net);
-
-  set("kmlGross", branches["LA UNION"].gross);
-  set("kmlReject", branches["LA UNION"].reject);
-  set("kmlBO", branches["LA UNION"].bo);
-  set("kmlNet", branches["LA UNION"].net);
-
-  // --- ✅ FIXED: Compute total row ---
-  const totalGross = branches.BAGUIO.gross + branches["LA UNION"].gross;
-  const totalReject = branches.BAGUIO.reject + branches["LA UNION"].reject;
-  const totalBO = branches.BAGUIO.bo + branches["LA UNION"].bo;
-  const totalNet = branches.BAGUIO.net + branches["LA UNION"].net;
-
-  // --- Update total KM6 row ---
-  set("totGross", totalGross);
-  set("totReject", totalReject);
-  set("totBO", totalBO);
-  set("totNet", totalNet);
-
-  console.log("🏢 Branch summary (Baguio + La Union):", branches);
-  console.log("📊 Total KM6:", { totalGross, totalReject, totalBO, totalNet });
-}
-
-// -----------------------------------------------------------
-// INITIAL LOAD + AUTO REFRESH (Final Clean Version)
-// -----------------------------------------------------------
-computeKM6Dashboard();
-computeBranchSummary(); // ✅ Make sure Branch Summary runs immediately
-autoSumTotals(); // ✅ Run Excel-like AutoSum once when page loads
-
-window.addEventListener("storage", e => {
-  if (["dataweb", "pnetinv", "invoicedate", "fsTotals"].includes(e.key)) {
-    computeKM6Dashboard();
-    computeBranchSummary();
-    autoSumTotals(); // ✅ Recalculate totals whenever data updates
-  }
-});
-
-// -----------------------------------------------------------
-// ✅ AUTO-SUM LOGIC (like Excel)
-// -----------------------------------------------------------
+/* ------------------------------------------------------------
+   🧮 Unified AutoSum (Branch table)
+   - Uses the visible table; falls back to IDs if needed
+   ------------------------------------------------------------ */
 function autoSumTotals() {
-  function getNumber(id) {
+  // Table-based (preferred)
+  const table = document.querySelector(".table-container table");
+  if (table) {
+    const rows = table.querySelectorAll("tbody tr");
+    let totalGross = 0, totalReject = 0, totalBO = 0, totalNet = 0;
+
+    rows.forEach(row => {
+      const cells = row.querySelectorAll("td");
+      if (!cells.length) return;
+      const branchName = (cells[0]?.innerText || "").trim();
+      if (branchName.toLowerCase().includes("total km6")) return;
+
+      totalGross  += Number((cells[1]?.innerText || "0").replace(/,/g, "")) || 0;
+      totalReject += Number((cells[2]?.innerText || "0").replace(/,/g, "")) || 0;
+      totalBO     += Number((cells[3]?.innerText || "0").replace(/,/g, "")) || 0;
+      totalNet    += Number((cells[4]?.innerText || "0").replace(/,/g, "")) || 0;
+    });
+
+    const totalRow = Array.from(rows).find(row =>
+      row.querySelector("td")?.innerText.trim().toLowerCase().includes("total km6")
+    );
+
+    if (totalRow) {
+      const tds = totalRow.querySelectorAll("td");
+      if (tds[1]) tds[1].innerText = totalGross.toLocaleString(undefined, { minimumFractionDigits: 2 });
+      if (tds[2]) tds[2].innerText = totalReject.toLocaleString(undefined, { minimumFractionDigits: 2 });
+      if (tds[3]) tds[3].innerText = totalBO.toLocaleString(undefined, { minimumFractionDigits: 2 });
+      if (tds[4]) tds[4].innerText = totalNet.toLocaleString(undefined, { minimumFractionDigits: 2 });
+    }
+
+    console.log("📊 AutoSum (table):", { totalGross, totalReject, totalBO, totalNet });
+    return;
+  }
+
+  // Fallback to ID-based (if no table found)
+  const getNumber = id => {
     const el = document.getElementById(id);
     return el ? parseFloat(el.textContent.replace(/,/g, "")) || 0 : 0;
-  }
-
-  function setNumber(id, value) {
+  };
+  const setNumber = (id, value) => {
     const el = document.getElementById(id);
     if (el)
       el.textContent = value.toLocaleString(undefined, {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       });
-  }
+  };
 
-  // --- Excel-style "AutoSum" for Total KM6 ---
-  const totalGross = getNumber("km6Gross") + getNumber("kmlGross");
+  const totalGross  = getNumber("km6Gross") + getNumber("kmlGross");
   const totalReject = getNumber("km6Reject") + getNumber("kmlReject");
-  const totalBO = getNumber("km6BO") + getNumber("kmlBO");
-  const totalNet = getNumber("km6Net") + getNumber("kmlNet");
+  const totalBO     = getNumber("km6BO")    + getNumber("kmlBO");
+  const totalNet    = getNumber("km6Net")   + getNumber("kmlNet");
 
-  // --- Update Total KM6 row ---
-  setNumber("totGross", totalGross);
+  setNumber("totGross",  totalGross);
   setNumber("totReject", totalReject);
-  setNumber("totBO", totalBO);
-  setNumber("totNet", totalNet);
+  setNumber("totBO",     totalBO);
+  setNumber("totNet",    totalNet);
 
-  console.log("📊 AutoSum Total KM6:", {
-    totalGross,
-    totalReject,
-    totalBO,
-    totalNet,
-  });
-}
-</script>
-<script>
-// -----------------------------------------------------------
-// ✅ AUTO-SUM LOGIC (Works on visible table rows)
-// -----------------------------------------------------------
-function autoSumTotals() {
-  const table = document.querySelector(".table-container table");
-  if (!table) return;
-
-  // get all rows inside tbody
-  const rows = table.querySelectorAll("tbody tr");
-  let totalGross = 0, totalReject = 0, totalBO = 0, totalNet = 0;
-
-  rows.forEach(row => {
-    const cells = row.querySelectorAll("td");
-    if (!cells.length) return;
-    const branchName = cells[0].innerText.trim();
-
-    // skip the total row
-    if (branchName.toLowerCase().includes("total km6")) return;
-
-    totalGross += Number(cells[1].innerText.replace(/,/g, "")) || 0;
-    totalReject += Number(cells[2].innerText.replace(/,/g, "")) || 0;
-    totalBO += Number(cells[3].innerText.replace(/,/g, "")) || 0;
-    totalNet += Number(cells[4].innerText.replace(/,/g, "")) || 0;
-  });
-
-  // find the "Total KM6" row
-  const totalRow = Array.from(rows).find(row =>
-    row.querySelector("td")?.innerText.trim().toLowerCase().includes("total km6")
-  );
-
-  if (totalRow) {
-    const tds = totalRow.querySelectorAll("td");
-    tds[1].innerText = totalGross.toLocaleString(undefined, { minimumFractionDigits: 2 });
-    tds[2].innerText = totalReject.toLocaleString(undefined, { minimumFractionDigits: 2 });
-    tds[3].innerText = totalBO.toLocaleString(undefined, { minimumFractionDigits: 2 });
-    tds[4].innerText = totalNet.toLocaleString(undefined, { minimumFractionDigits: 2 });
-  }
-
-  console.log("📊 AutoSum Total KM6:", {
-    totalGross,
-    totalReject,
-    totalBO,
-    totalNet,
-  });
+  console.log("📊 AutoSum (IDs):", { totalGross, totalReject, totalBO, totalNet });
 }
 
-// Run after table render (slight delay ensures data loaded)
-setTimeout(autoSumTotals, 800);
-</script>
-<script>
-// ✅ Helper: Get target value per FS name
-function getFSTarget(fsName) {
-  const data = JSON.parse(localStorage.getItem("fsTargetData") || "[]");
-  const normalize = n => String(n || "").toUpperCase().replace(/\s+/g, " ").trim();
-  const match = fsData.find(x => normalize(x.FS || x.Branch || x.Name) === normalize(fsName));
-  console.log("🔍 Matching FS target:", fsName, "→", match ? match.Target : "❌ not found");
-
-  return match ? Number(match.Target) : 0;
-}
-
-// ✅ Auto-fill Target column in all FS tables (KCM, LU, Baguio)
-// ✅ Helper: Get target value per FS name (uses the new 'targets.fs' data)
-function getFSTarget(fsName) {
-  const targets = JSON.parse(localStorage.getItem("targets") || "{}");
-  const fs = targets.fs || {}; // ✅ correct source
-
-  // Normalize to avoid spacing / case issues
-  const normalize = n =>
-    String(n || "")
-      .toUpperCase()
-      .replace(/\s+/g, " ")
-      .replace(/\u00A0/g, " ")
-      .trim();
-
-  const cleanFS = normalize(fsName);
-  const keys = Object.keys(fs);
-
-  // Find matching FS name (exact or close)
-  const matchKey =
-    keys.find(k => normalize(k) === cleanFS) ||
-    keys.find(k => normalize(k).includes(cleanFS)) ||
-    keys.find(k => cleanFS.includes(normalize(k)));
-
-  if (!matchKey) {
-    console.warn(`⚠️ FS target not found for: ${fsName}`);
-    return 0;
-  }
-
-  const targetVal = Number(fs[matchKey]) || 0;
-  console.log(`🎯 Matched FS Target: ${matchKey} = ${targetVal.toLocaleString()}`);
-  return targetVal;
-}
-
-// ✅ Run after page loads
-window.addEventListener("DOMContentLoaded", () => {
-  setTimeout(updateFSTargets, 1000);
-});
-</script>
-<script>
-// ✅ Auto-sum "Target" column totals in each FS table
-function autoSumFSTargetTotals() {
-  const tables = ["tblKCM", "tblLU", "tblBG"]; // table IDs
-  tables.forEach(tblId => {
-    const tbody = document.getElementById(tblId);
-    if (!tbody) return;
-
-    const rows = tbody.querySelectorAll("tr:not(.total)");
-    const totalRow = tbody.querySelector("tr.total");
-    if (!totalRow) return;
-
-    let totalTarget = 0;
-
-    rows.forEach(row => {
-      const cells = row.querySelectorAll("td");
-      if (cells.length < 6) return;
-      const val = Number(cells[5].innerText.replace(/,/g, "")) || 0;
-      totalTarget += val;
-    });
-
-    // update the total target cell (6th <td>)
-    const totalCells = totalRow.querySelectorAll("td");
-    if (totalCells.length >= 6) {
-      totalCells[5].innerText = totalTarget.toLocaleString(undefined, { minimumFractionDigits: 2 });
-    }
-  });
-
-  console.log("🧮 Auto-summed total Targets per FS table.");
-}
-
-// ✅ Run after target values are filled
-window.addEventListener("DOMContentLoaded", () => {
-  setTimeout(() => {
-    updateFSTargets();
-    autoSumFSTargetTotals();
-  }, 1200);
-});
-</script>
-<script>
-// ✅ Map branch names (for clarity)
-const branchMap = {
-  "Baguio": "KM6",
-  "La Union": "KML"
-};
-// ✅ Fix: Define the missing updateFSTargets function (new structure)
+/* ------------------------------------------------------------
+   🎯 FS Targets — table cell filler (from targets.fs)
+   ------------------------------------------------------------ */
 function updateFSTargets() {
   const targets = JSON.parse(localStorage.getItem("targets") || "{}");
   const fs = targets.fs || {};
-
   if (!Object.keys(fs).length) {
     console.warn("⚠️ No FS target data found in localStorage.targets.fs");
     return;
   }
-
-  console.log("✅ Loaded FS targets:", fs);
-
-  // Loop through FS rows in dashboard (where the target column should be updated)
   document.querySelectorAll("table tbody tr").forEach(row => {
-    const fsName = row.cells[0]?.textContent?.trim();
-    const targetCell = row.cells[5]; // assuming TARGET is column 6
-
+    const fsName = row.cells?.[0]?.textContent?.trim();
+    const targetCell = row.cells?.[5]; // TARGET column (6th)
     if (!fsName || !targetCell) return;
-
-    const normalize = n =>
-      String(n || "")
-        .toUpperCase()
-        .replace(/\s+/g, " ")
-        .replace(/\u00A0/g, " ")
-        .trim();
-
-    const matchKey = Object.keys(fs).find(k => normalize(k) === normalize(fsName));
-
-    if (matchKey) {
-      const targetVal = Number(fs[matchKey]) || 0;
-      targetCell.textContent = targetVal.toLocaleString(undefined, {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      });
-    } else {
-      targetCell.textContent = "0.00";
-    }
+    const matchKey = Object.keys(fs).find(k => normalizeText(k) === normalizeText(fsName));
+    const targetVal = matchKey ? Number(fs[matchKey]) || 0 : 0;
+    targetCell.textContent = targetVal.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
   });
-
   console.log("🎯 FS Targets updated successfully from localStorage.targets.fs");
 }
 
-// ✅ Auto-fill Branch Summary Targets directly from uploaded data (KM6 → Baguio, KML → La Union)
+/* ------------------------------------------------------------
+   🏢 Branch Targets (% and Balance computations)
+   ------------------------------------------------------------ */
 function updateBranchTargets() {
   const targetData = JSON.parse(localStorage.getItem("targets") || "{}");
   if (!targetData.branches) {
@@ -1147,141 +663,94 @@ function updateBranchTargets() {
     return;
   }
 
-  // --- Auto-map Excel branch names to dashboard display names ---
-  const km6Val = targetData.branches.KM6 || targetData.branches.BAGUIO || 0;
-  const kmlVal = targetData.branches.KML || targetData.branches["LA UNION"] || 0;
+  // Normalize and convert to numbers safely
+  const bData = targetData.branches;
+  const km6Val = Number(bData.KM6 || bData.BAGUIO || 0);
+  const kmlVal = Number(bData.KML || bData["LA UNION"] || 0);
+  const totalVal = km6Val + kmlVal;
 
-  // --- Update table cells ---
-  const bagCell = document.getElementById("km6Target"); // Baguio
-  const luCell  = document.getElementById("kmlTarget"); // La Union
-  const totalCell = document.getElementById("totTarget");
+  // Force update with formatted output
+  setText("km6Target", km6Val.toFixed(2), { asNumber: true });
+  setText("kmlTarget", kmlVal.toFixed(2), { asNumber: true });
+  setText("totTarget", totalVal.toFixed(2), { asNumber: true });
 
-  if (bagCell) bagCell.innerText = km6Val.toLocaleString(undefined, { minimumFractionDigits: 2 });
-  if (luCell)  luCell.innerText  = kmlVal.toLocaleString(undefined, { minimumFractionDigits: 2 });
-  if (totalCell) totalCell.innerText = (km6Val + kmlVal).toLocaleString(undefined, { minimumFractionDigits: 2 });
-
-  console.log("🏢 Branch Targets updated automatically from Excel:", {
-    Baguio: km6Val,
-    "La Union": kmlVal,
-    Total: km6Val + kmlVal
-  });
+  console.log("🏢 Branch Targets:", { Baguio: km6Val, "La Union": kmlVal, Total: totalVal });
 }
 
-// ✅ Run after everything else is done
-window.addEventListener("DOMContentLoaded", () => {
-  setTimeout(updateBranchTargets, 1500);
-});
-</script>
-<script>
-// ✅ Compute % and Balance for each branch (with accounting-style negatives)
 function updateBranchSummaryCalculations() {
   const rows = [
     { netId: "km6Net", targetId: "km6Target", pctId: "km6Pct", balId: "km6Bal" },
     { netId: "kmlNet", targetId: "kmlTarget", pctId: "kmlPct", balId: "kmlBal" }
   ];
-
   let totalNet = 0, totalTarget = 0, totalBal = 0;
 
   rows.forEach(row => {
     const net = parseFloat((document.getElementById(row.netId)?.innerText || "0").replace(/,/g, "")) || 0;
     const tar = parseFloat((document.getElementById(row.targetId)?.innerText || "0").replace(/,/g, "")) || 0;
+    const pct = tar > 0 ? (net / tar) * 100 : 0;
+    const bal = net - tar;
 
-    let pct = 0;
-    let bal = net - tar;
-
-    if (tar > 0) pct = (net / tar) * 100;
-
-    // ✅ Format percentage
     const pctText = pct.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "%";
-
-    // ✅ Format balance (if negative → show in parentheses)
     const balText = bal < 0
       ? `(${Math.abs(bal).toLocaleString(undefined, { minimumFractionDigits: 2 })})`
       : bal.toLocaleString(undefined, { minimumFractionDigits: 2 });
 
-    document.getElementById(row.pctId).innerText = pctText;
-    document.getElementById(row.balId).innerText = balText;
+    const pctEl = document.getElementById(row.pctId);
+    const balEl = document.getElementById(row.balId);
+    if (pctEl) pctEl.innerText = pctText;
+    if (balEl) balEl.innerText = balText;
 
-    totalNet += net;
-    totalTarget += tar;
-    totalBal += bal;
+    totalNet += net; totalTarget += tar; totalBal += bal;
   });
 
-  // ✅ Compute totals for “Total KM6” row
   const totPct = totalTarget > 0 ? (totalNet / totalTarget) * 100 : 0;
   const totBalText = totalBal < 0
     ? `(${Math.abs(totalBal).toLocaleString(undefined, { minimumFractionDigits: 2 })})`
     : totalBal.toLocaleString(undefined, { minimumFractionDigits: 2 });
 
-  document.getElementById("totPct").innerText = totPct.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "%";
-  document.getElementById("totBal").innerText = totBalText;
+  const totPctEl = document.getElementById("totPct");
+  const totBalEl = document.getElementById("totBal");
+  if (totPctEl) totPctEl.innerText = totPct.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "%";
+  if (totBalEl) totBalEl.innerText = totBalText;
 
-  console.log("📊 Branch Summary % and Balance updated successfully.");
+  console.log("📊 Branch Summary % and Balance updated.");
 }
 
-// ✅ Run automatically after branch targets update
-window.addEventListener("DOMContentLoaded", () => {
-  setTimeout(() => {
-    updateBranchTargets();
-    updateBranchSummaryCalculations();
-  }, 2000);
-});
-
-/// 🧾 DAILY SALES COMPUTATION + DISPLAY (From "Invoice date" sheet)
-// -----------------------------------------------------------
+/* ------------------------------------------------------------
+   📘 Daily Sales (from 'Invoice date' sheet)
+   ------------------------------------------------------------ */
 function computeDailySales(invoiceData) {
   if (!invoiceData || !invoiceData.length) return null;
 
-  // ✅ Normalize headers (convert to uppercase for consistent access)
   invoiceData = invoiceData.map(r => {
     const obj = {};
-    for (const [k, v] of Object.entries(r)) obj[k.trim().toUpperCase()] = v;
+    for (const [k, v] of Object.entries(r)) obj[normalizeText(k)] = v;
     return obj;
   });
 
-  // ✅ Filter only rows that have valid KM6, KML, or TOTAL data
-  const validRows = invoiceData.filter(r =>
-    r["INVOICE DATE"] && (r["KM6"] || r["KML"] || r["TOTAL"])
-  );
+  const valid = invoiceData.filter(r => r["INVOICE DATE"] && (r["KM6"] || r["KML"] || r["TOTAL"]));
+  if (valid.length < 2) return null;
 
-  if (!validRows.length) {
-    console.warn("⚠️ No valid 'Invoice date' rows found.");
-    return null;
-  }
-
-  console.log("📘 Loaded Invoice date data:", validRows.slice(-5));
-
-  if (validRows.length < 2) return null; // not enough data for comparison
-
-  // ✅ Get previous and current day records (last two rows)
-  const prev = validRows[validRows.length - 2];
-  const curr = validRows[validRows.length - 1];
+  const prev = valid[valid.length - 2];
+  const curr = valid[valid.length - 1];
 
   const toNum = v => parseFloat(String(v || "0").replace(/[^0-9.-]/g, "")) || 0;
-  const calcChange = (currVal, prevVal) =>
-    prevVal !== 0 ? ((currVal - prevVal) / prevVal) * 100 : 0;
+  const changePct = (c, p) => {
+  const total = c + p;
+  if (total === 0) return 0;
+  const prevShare = (p / total) * 100;
+  const currShare = (c / total) * 100;
+  return currShare - prevShare; // difference in percentage points
+};
 
   return {
-    KM6: {
-      prev: toNum(prev["KM6"]),
-      curr: toNum(curr["KM6"]),
-      change: calcChange(toNum(curr["KM6"]), toNum(prev["KM6"]))
-    },
-    KML: {
-      prev: toNum(prev["KML"]),
-      curr: toNum(curr["KML"]),
-      change: calcChange(toNum(curr["KML"]), toNum(prev["KML"]))
-    },
-    Total: {
-      prev: toNum(prev["TOTAL"]),
-      curr: toNum(curr["TOTAL"]),
-      change: calcChange(toNum(curr["TOTAL"]), toNum(prev["TOTAL"]))
-    }
+    KM6:  { prev: toNum(prev["KM6"]),  curr: toNum(curr["KM6"]),  change: changePct(toNum(curr["KM6"]),  toNum(prev["KM6"]))  },
+    KML:  { prev: toNum(prev["KML"]),  curr: toNum(curr["KML"]),  change: changePct(toNum(curr["KML"]),  toNum(prev["KML"]))  },
+    Total:{ prev: toNum(prev["TOTAL"]),curr: toNum(curr["TOTAL"]),change: changePct(toNum(curr["TOTAL"]),toNum(prev["TOTAL"])) }
   };
 }
 
 function renderDailySales() {
-  // ✅ Support all possible key names in localStorage
   const invoiceData =
     JSON.parse(localStorage.getItem("invoicedate") || "[]") ||
     JSON.parse(localStorage.getItem("invoiceDateData") || "[]") ||
@@ -1292,61 +761,261 @@ function renderDailySales() {
     return;
   }
 
-  const dailySales = computeDailySales(invoiceData);
-  if (!dailySales) return;
+  const daily = computeDailySales(invoiceData);
+  if (!daily) return;
 
   const peso = n => "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits: 2 });
-  const arrow = pct =>
-    pct > 0
-      ? `<span style='color:green;'>▲ ${pct.toFixed(2)}%</span>`
-      : pct < 0
-      ? `<span style='color:red;'>▼ ${Math.abs(pct).toFixed(2)}%</span>`
-      : `<span style='color:gray;'>0.00%</span>`;
+  const arrow = pct => {
+  const formatted = `${Math.abs(pct).toFixed(2)}%`;
+  if (pct > 0)
+    return `<span style="color:green; font-weight:700;">▲ ${formatted}</span>`;
+  if (pct < 0)
+    return `<span style="color:red; font-weight:700;">▼ ${formatted}</span>`;
+  return `<span style="color:gray; font-weight:700;">${formatted}</span>`;
+};
 
-  // 🟩 Update Cards
-  document.getElementById("prevKM6").textContent = peso(dailySales.Total.prev);
-  document.getElementById("currKM6").textContent = peso(dailySales.Total.curr);
-  document.getElementById("changeKM6").innerHTML = arrow(dailySales.Total.change);
+  // Cards: Total (prev/curr/change)
+  const prevKM6 = document.getElementById("prevKM6");
+  const currKM6 = document.getElementById("currKM6");
+  const changeKM6 = document.getElementById("changeKM6");
+  if (prevKM6)  prevKM6.textContent = peso(daily.Total.prev);
+  if (currKM6)  currKM6.textContent = peso(daily.Total.curr);
+  if (changeKM6) changeKM6.innerHTML = arrow(daily.Total.change);
 
-  // “KM6” = Baguio
-  document.getElementById("prevBaguio").textContent = peso(dailySales.KM6.prev);
-  document.getElementById("currBaguio").textContent = peso(dailySales.KM6.curr);
-  document.getElementById("changeBaguio").innerHTML = arrow(dailySales.KM6.change);
+  // Baguio (KM6)
+  const prevB = document.getElementById("prevBaguio");
+  const currB = document.getElementById("currBaguio");
+  const chgB  = document.getElementById("changeBaguio");
+  if (prevB) prevB.textContent = peso(daily.KM6.prev);
+  if (currB) currB.textContent = peso(daily.KM6.curr);
+  if (chgB)  chgB.innerHTML = arrow(daily.KM6.change);
 
-  // “KML” = La Union
-  document.getElementById("prevLU").textContent = peso(dailySales.KML.prev);
-  document.getElementById("currLU").textContent = peso(dailySales.KML.curr);
-  document.getElementById("changeLU").innerHTML = arrow(dailySales.KML.change);
+  // La Union (KML)
+  const prevL = document.getElementById("prevLU");
+  const currL = document.getElementById("currLU");
+  const chgL  = document.getElementById("changeLU");
+  if (prevL) prevL.textContent = peso(daily.KML.prev);
+  if (currL) currL.textContent = peso(daily.KML.curr);
+  if (chgL)  chgL.innerHTML = arrow(daily.KML.change);
 
-  console.log("✅ Daily Sales Updated from 'Invoice date' sheet:", dailySales);
+  console.log("✅ Daily Sales Updated:", daily);
 }
 
-// Auto-run once page is loaded
-window.addEventListener("DOMContentLoaded", () => {
-  setTimeout(renderDailySales, 500);
+/* ------------------------------------------------------------
+   🚀 Main Compute (Multi-branch) — includes targets integration
+   ------------------------------------------------------------ */
+async function computeKM6Dashboard() {
+  await waitForUploads();
+
+  // Header normalization if needed
+  function fixData(raw) {
+    if (!raw) return [];
+    if (Array.isArray(raw) && Array.isArray(raw[0])) {
+      const headers = raw[0].map(h => String(h || "").trim());
+      return raw.slice(1).map(r => Object.fromEntries(headers.map((h, i) => [h, r[i]])));
+    }
+    return raw;
+  }
+
+  let dataweb = fixData(JSON.parse(localStorage.getItem("dataweb") || "[]"));
+  let pnetinv = fixData(JSON.parse(localStorage.getItem("pnetinv") || "[]"));
+  let invoicedate = fixData(JSON.parse(localStorage.getItem("invoicedate") || "[]"));
+  const targets = JSON.parse(localStorage.getItem("targets") || "{}");
+
+  if (!dataweb.length && !pnetinv.length) {
+    console.warn("⚠️ No uploaded Excel data found.");
+    return;
+  }
+
+  const branches = ["KM6", "KML", "BAGUIO", "KCM"];
+  const totals = {};
+
+  branches.forEach(branch => {
+    const gross = dataweb
+      .filter(r => normalizeText(r["Branch Name"]) === normalizeText(branch))
+      .reduce((sum, r) => sum + num(r["Sum of Order Amount"]), 0);
+
+    const net = pnetinv
+      .filter(r => normalizeText(r["Branch Name"]) === normalizeText(branch))
+      .reduce((sum, r) => sum + num(r["TOTAL NET"]), 0);
+
+    const rej = pnetinv
+      .filter(r => normalizeText(r["Branch Name"]) === normalizeText(branch))
+      .reduce((sum, r) => sum + num(r["TOTAL REJECTION"]), 0);
+
+    const bo = pnetinv
+      .filter(r => normalizeText(r["Branch Name"]) === normalizeText(branch))
+      .reduce((sum, r) => sum + num(r["TOTAL BO"] || r["TOTAL B.O."]), 0);
+
+    totals[branch] = { gross, net, reject: rej, bo, target: 0 };
+  });
+
+  // Integrate branch-level targets if present
+  if (targets && typeof targets === "object") {
+    branches.forEach(branch => {
+      const branchTarget = targets[branch] || targets[branch.toUpperCase()] || targets[branch.toLowerCase()] || 0;
+      totals[branch].target = num(branchTarget);
+    });
+  }
+
+  // Display (by IDs if present)
+  const show = (id, val) => setText(id, val);
+  let totalAll = { gross: 0, net: 0, reject: 0, bo: 0, target: 0 };
+
+  branches.forEach(branch => {
+    const t = totals[branch];
+    totalAll.gross += t.gross; totalAll.net += t.net; totalAll.reject += t.reject; totalAll.bo += t.bo; totalAll.target += t.target;
+
+    show(`${branch}_gross`, t.gross);
+    show(`${branch}_net`,   t.net);
+    show(`${branch}_reject`,t.reject);
+    show(`${branch}_bo`,    t.bo);
+    show(`${branch}_target`,t.target);
+
+    const elPct = document.getElementById(`${branch}_pct`);
+    if (elPct) elPct.textContent = t.target ? ((t.net / t.target) * 100).toFixed(2) + "%" : "-";
+  });
+
+  show("totGross",  totalAll.gross);
+  show("totNet",    totalAll.net);
+  show("totReject", totalAll.reject);
+  show("totBO",     totalAll.bo);
+  const totPctEl = document.getElementById("totPct");
+  if (totPctEl) totPctEl.textContent = totalAll.target ? ((totalAll.net / totalAll.target) * 100).toFixed(2) + "%" : "-";
+
+  // Daily comparison (Invoice date last 2 rows)
+  if (invoicedate.length > 1) {
+    const last = invoicedate[invoicedate.length - 1];
+    const prev = invoicedate[invoicedate.length - 2];
+    const km6Curr = num(last["KM6"]) + num(last["KML"]);
+    const km6Prev = num(prev["KM6"]) + num(prev["KML"]);
+    const pct = km6Prev ? ((km6Curr - km6Prev) / km6Prev) * 100 : 0;
+
+    const upd = (idPrev, idCurr, idChange, prevVal, currVal) => {
+      setText(idPrev, prevVal);
+      setText(idCurr, currVal);
+      const elCh = document.getElementById(idChange);
+      if (elCh) {
+        elCh.textContent = (pct >= 0 ? "▲ " : "▼ ") + Math.abs(pct).toFixed(2) + "%";
+        elCh.className = pct >= 0 ? "up" : "down";
+      }
+    };
+    upd("prevKM6", "currKM6", "changeKM6", km6Prev, km6Curr);
+  }
+}
+
+/* ------------------------------------------------------------
+   🧮 FS Target Column Totals (per FS table)
+   ------------------------------------------------------------ */
+function autoSumFSTargetTotals() {
+  ["tblKCM", "tblLU", "tblBG"].forEach(tblId => {
+    const tbody = document.getElementById(tblId);
+    if (!tbody) return;
+    const rows = tbody.querySelectorAll("tr:not(.total)");
+    const totalRow = tbody.querySelector("tr.total");
+    if (!totalRow) return;
+
+    let totalTarget = 0;
+    rows.forEach(row => {
+      const cells = row.querySelectorAll("td");
+      if (cells.length < 6) return;
+      const val = Number(cells[5].innerText.replace(/,/g, "")) || 0;
+      totalTarget += val;
+    });
+
+    const totalCells = totalRow.querySelectorAll("td");
+    if (totalCells.length >= 6) {
+      totalCells[5].innerText = totalTarget.toLocaleString(undefined, { minimumFractionDigits: 2 });
+    }
+  });
+  console.log("🧮 Auto-summed total Targets per FS table.");
+}
+
+/* ------------------------------------------------------------
+   🔁 Recompute + Render (single orchestrator)
+   ------------------------------------------------------------ */
+async function recomputeAndRenderAll() {
+  // Ensure fsTotals exist
+  let fsData = JSON.parse(localStorage.getItem("fsTotals") || "{}");
+  if (!Object.keys(fsData).length) {
+    computeFSTotals();
+    fsData = JSON.parse(localStorage.getItem("fsTotals") || "{}");
+  }
+
+  // Main computations in order
+  await computeKM6Dashboard();
+  computeBranchSummary();
+  renderFSTables();
+
+  // Targets + percents/balances
+  updateFSTargets();
+  autoSumFSTargetTotals();
+  updateBranchTargets();
+  updateBranchSummaryCalculations();
+
+  // Branch totals recalculated from rendered rows (and/or ID fallback)
+  autoSumTotals();
+
+  // Daily sales cards
+  renderDailySales();
+}
+
+/* ------------------------------------------------------------
+   🔄 Storage Change Listener (single, merged)
+   ------------------------------------------------------------ */
+window.addEventListener("storage", (event) => {
+  const keys = ["dataweb", "pnetinv", "invoicedate", "invoiceDateData", "targets", "fsTotals"];
+  if (!keys.includes(event.key)) return;
+
+  console.log("🔄 Detected data update from another tab/page:", event.key);
+  (async () => {
+    await recomputeAndRenderAll();
+  })().catch(console.error);
 });
 
+/* ------------------------------------------------------------
+   🚦 Boot Sequence
+   - Auto-restore from cloud if no local data
+   - Then compute & render everything
+   ------------------------------------------------------------ */
+window.addEventListener("DOMContentLoaded", async () => {
+  try {
+    const hasData =
+      localStorage.getItem("dataweb") &&
+      localStorage.getItem("pnetinv") &&
+      localStorage.getItem("invoicedate");
 
-// -----------------------------------------------------------
-// 🔄 AUTO-REFRESH DASHBOARD WHEN UPLOAD PAGE UPDATES STORAGE
-// -----------------------------------------------------------
-window.addEventListener("storage", (event) => {
-  const keys = ["dataweb", "pnetinv", "invoicedate", "invoiceDateData", "targets"];
-  if (keys.includes(event.key)) {
-    console.log("🔄 Detected data update from upload page. Refreshing dashboard...");
-    computeKM6Dashboard();
-    computeBranchSummary();
-    autoSumTotals();
-    updateBranchTargets();
-    updateBranchSummaryCalculations();
+    if (!hasData) {
+      console.log("📱 No local data found — restoring from Firebase...");
+      await restoreDashboardFromCloud(); // not forced
+    } else {
+      console.log("💾 Local data found — skipping cloud restore.");
+      setText("lastUpdated", "Last updated: " + new Date().toLocaleString(), { asNumber: false });
+    }
+
+    // 🧮 Recompute & render everything
+    await recomputeAndRenderAll();
+
+    // 🕒 Safety delayed refreshes (in case of slow DOM updates)
+setTimeout(() => {
+  updateFSTargets();
+  autoSumFSTargetTotals();
+  updateBranchTargets();
+}, 1000);
+
+setTimeout(() => {
+  updateBranchSummaryCalculations(); // compute after targets are ready
+}, 1200);
+
+    setTimeout(() => { autoSumTotals(); }, 1200);
+    setTimeout(() => { renderDailySales(); }, 1500);
+
+  } catch (err) {
+    console.error("❌ Initialization error:", err);
   }
 });
-window.addEventListener("storage", (event) => {
-  if (event.key === "invoicedate") {
-    console.log("🔄 Detected new Invoice date upload, refreshing daily sales...");
-    renderDailySales();
-  }
-});
+
 </script>
+
 </body>
 </html>
